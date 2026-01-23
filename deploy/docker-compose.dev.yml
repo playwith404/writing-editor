@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+  core-api:
+    image: ms9019/cowrtie:core-dev-latest
+    container_name: cowrite-core-api
+    ports:
+      - "8100:3000"
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=core-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  sync-service:
+    image: ms9019/cowrtie:sync-dev-latest
+    container_name: cowrite-sync-service
+    ports:
+      - "8102:3000"
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=sync-service
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  ai-service:
+    image: ms9019/cowrtie:ai-dev-latest
+    container_name: cowrite-ai-service
+    ports:
+      - "8101:8000"
+    env_file:
+      - .env
+    environment:
+      - SERVICE_NAME=ai-service
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: cowrite-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
