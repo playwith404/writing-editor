@@ -38,7 +38,7 @@ jobs:
     needs: test-build
     environment: dev
     env:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USER || secrets.DOCKER_USERNAME || secrets.DOCKER_USER }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USER || vars.DOCKERHUB_USER || secrets.DOCKER_USERNAME || vars.DOCKER_USERNAME || secrets.DOCKER_USER || vars.DOCKER_USER }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKERHUB_ACCESS_TOKEN || secrets.DOCKERHUB_PAT || secrets.DOCKERHUB_PASSWORD || secrets.DOCKER_PASSWORD || secrets.DOCKER_TOKEN || secrets.DOCKER_PAT }}
     steps:
       - name: Checkout
@@ -50,11 +50,11 @@ jobs:
       - name: Check DockerHub secrets
         run: |
           if [ -z "$DOCKERHUB_USERNAME" ]; then
-            echo "Missing DockerHub username secret (expected: DOCKERHUB_USERNAME)"
+            echo "Missing DockerHub username (set Actions secret or variable: DOCKERHUB_USERNAME)"
             exit 1
           fi
           if [ -z "$DOCKERHUB_TOKEN" ]; then
-            echo "Missing DockerHub token secret (expected: DOCKERHUB_TOKEN)"
+            echo "Missing DockerHub token secret (set Actions secret: DOCKERHUB_TOKEN)"
             exit 1
           fi
       - name: Login to DockerHub
