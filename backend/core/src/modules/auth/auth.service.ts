@@ -51,9 +51,14 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
-    const payload = this.jwtService.verify<{ sub: string; type?: string }>(refreshToken, {
-      secret: this.configService.get<string>('jwt.secret'),
-    });
+    let payload: { sub: string; type?: string } | null = null;
+    try {
+      payload = this.jwtService.verify<{ sub: string; type?: string }>(refreshToken, {
+        secret: this.configService.get<string>('jwt.secret'),
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
     if (!payload || payload.type !== 'refresh') {
       throw new UnauthorizedException('Invalid refresh token');
