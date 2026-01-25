@@ -1,6 +1,15 @@
 version: "3.8"
 
 services:
+  frontend:
+    image: ms9019/cowrtie:frontend-dev-latest
+    container_name: cowrite-frontend
+    ports:
+      - "3100:3000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
   core-api:
     image: ms9019/cowrtie:core-dev-latest
     container_name: cowrite-core-api

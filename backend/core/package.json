@@ -15,6 +15,7 @@
     "@nestjs/config": "^3.2.3",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
+    "@nestjs/platform-express": "^10.3.10",
     "@nestjs/typeorm": "^10.0.2",
     "@nestjs/mapped-types": "^2.0.5",
     "@elastic/elasticsearch": "^8.14.0",

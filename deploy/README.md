@@ -18,6 +18,10 @@ JWT_SECRET=replace_me
 REDIS_URL=redis://redis:6379
 ELASTICSEARCH_NODE=http://host.docker.internal:9200
 
+# Frontend (선택)
+NEXT_PUBLIC_API_URL=http://localhost:8100
+NEXT_PUBLIC_WS_URL=ws://localhost:8102/ws
+
 # AI 서비스
 OPENAI_API_KEY=replace_me
 ANTHROPIC_API_KEY=replace_me

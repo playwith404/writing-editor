@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.DS_Store
+npm-debug.log
+Dockerfile
+.dockerignore
+coverage
+*.log

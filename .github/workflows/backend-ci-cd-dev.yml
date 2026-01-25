@@ -1,9 +1,14 @@
-name: CI/CD (dev)
+name: Backend CI/CD (dev)
 
 on:
   push:
     branches:
       - dev
+    paths:
+      - "backend/**"
+      - "database/**"
+      - "deploy/**"
+      - ".github/workflows/backend-ci-cd-dev.yml"
   workflow_dispatch:
 
 env:
@@ -121,5 +126,6 @@ jobs:
           script: |
             set -e
             cd /srv/cowrite
-            docker compose -f docker-compose.dev.yml pull
-            docker compose -f docker-compose.dev.yml up -d --remove-orphans
+            docker compose -f docker-compose.dev.yml up -d redis
+            docker compose -f docker-compose.dev.yml pull core-api sync-service ai-service
+            docker compose -f docker-compose.dev.yml up -d --no-deps core-api sync-service ai-service
