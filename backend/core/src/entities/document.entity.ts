@@ -9,7 +9,7 @@ export class Document {
   projectId: string;
 
   @Column({ name: 'parent_id', nullable: true })
-  parentId?: string | null;
+  parentId?: string;
 
   @Column({ length: 20 })
   type: string;
@@ -18,7 +18,7 @@ export class Document {
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  content?: string | null;
+  content?: string;
 
   @Column({ name: 'order_index', default: 0 })
   orderIndex: number;
@@ -30,7 +30,7 @@ export class Document {
   status: string;
 
   @Column({ type: 'text', nullable: true })
-  notes?: string | null;
+  notes?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

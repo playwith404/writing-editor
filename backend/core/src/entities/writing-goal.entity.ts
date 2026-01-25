@@ -9,7 +9,7 @@ export class WritingGoal {
   projectId: string;
 
   @Column({ name: 'user_id', nullable: true })
-  userId?: string | null;
+  userId?: string;
 
   @Column({ name: 'goal_type', length: 20 })
   goalType: string;
@@ -21,7 +21,7 @@ export class WritingGoal {
   currentWords: number;
 
   @Column({ name: 'due_date', type: 'date', nullable: true })
-  dueDate?: string | null;
+  dueDate?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

@@ -15,10 +15,10 @@ export class AiUsage {
   tokensUsed: number;
 
   @Column({ length: 80, nullable: true })
-  model?: string | null;
+  model?: string;
 
   @Column({ length: 30, nullable: true })
-  provider?: string | null;
+  provider?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

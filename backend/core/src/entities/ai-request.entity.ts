@@ -6,38 +6,38 @@ export class AiRequest {
   id: string;
 
   @Column({ name: 'user_id', nullable: true })
-  userId?: string | null;
+  userId?: string;
 
   @Column({ name: 'project_id', nullable: true })
-  projectId?: string | null;
+  projectId?: string;
 
   @Column({ length: 50 })
   feature: string;
 
   @Column({ length: 30, nullable: true })
-  provider?: string | null;
+  provider?: string;
 
   @Column({ length: 80, nullable: true })
-  model?: string | null;
+  model?: string;
 
   @Column({ type: 'text', nullable: true })
-  prompt?: string | null;
+  prompt?: string;
 
   @Column({ name: 'input_tokens', nullable: true })
-  inputTokens?: number | null;
+  inputTokens?: number;
 
   @Column({ name: 'output_tokens', nullable: true })
-  outputTokens?: number | null;
+  outputTokens?: number;
 
   @Column({ default: 'pending' })
   status: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  result?: Record<string, unknown> | null;
+  result?: Record<string, unknown>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
-  completedAt?: Date | null;
+  completedAt?: Date;
 }

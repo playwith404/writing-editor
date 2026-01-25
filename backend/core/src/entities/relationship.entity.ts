@@ -18,7 +18,7 @@ export class Relationship {
   relationType: string;
 
   @Column({ type: 'text', nullable: true })
-  description?: string | null;
+  description?: string;
 
   @Column({ name: 'is_bidirectional', default: false })
   isBidirectional: boolean;

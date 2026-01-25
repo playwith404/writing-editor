@@ -19,19 +19,19 @@ export class User {
   name: string;
 
   @Column({ name: 'password_hash', nullable: true })
-  passwordHash?: string | null;
+  passwordHash?: string;
 
   @Column({ name: 'avatar_url', nullable: true })
-  avatarUrl?: string | null;
+  avatarUrl?: string;
 
   @Column({ default: 'user' })
   role: string;
 
   @Column({ name: 'oauth_provider', nullable: true })
-  oauthProvider?: string | null;
+  oauthProvider?: string;
 
   @Column({ name: 'oauth_id', nullable: true })
-  oauthId?: string | null;
+  oauthId?: string;
 
   @Column({ type: 'jsonb', default: () => "'{}'" })
   settings: Record<string, unknown>;
@@ -43,5 +43,5 @@ export class User {
   updatedAt: Date;
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deletedAt?: Date | null;
+  deletedAt?: Date;
 }

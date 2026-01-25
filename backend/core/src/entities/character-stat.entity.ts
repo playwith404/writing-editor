@@ -15,7 +15,7 @@ export class CharacterStat {
   stats: Record<string, unknown>;
 
   @Column({ name: 'episode_num', nullable: true })
-  episodeNum?: number | null;
+  episodeNum?: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

@@ -12,16 +12,16 @@ export class RefreshToken {
   tokenHash: string;
 
   @Column({ name: 'user_agent', type: 'text', nullable: true })
-  userAgent?: string | null;
+  userAgent?: string;
 
   @Column({ name: 'ip_address', nullable: true })
-  ipAddress?: string | null;
+  ipAddress?: string;
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
 
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
-  revokedAt?: Date | null;
+  revokedAt?: Date;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

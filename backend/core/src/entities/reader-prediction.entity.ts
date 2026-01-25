@@ -9,10 +9,10 @@ export class ReaderPrediction {
   documentId: string;
 
   @Column({ length: 30, nullable: true })
-  provider?: string | null;
+  provider?: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  result?: Record<string, unknown> | null;
+  result?: Record<string, unknown>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

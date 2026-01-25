@@ -9,7 +9,7 @@ export class WorldSetting {
   projectId: string;
 
   @Column({ name: 'parent_id', nullable: true })
-  parentId?: string | null;
+  parentId?: string;
 
   @Column({ length: 50 })
   category: string;
@@ -18,7 +18,7 @@ export class WorldSetting {
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  content?: string | null;
+  content?: string;
 
   @Column({ type: 'jsonb', default: () => "'{}'" })
   metadata: Record<string, unknown>;

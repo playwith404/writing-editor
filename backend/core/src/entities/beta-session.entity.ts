@@ -9,23 +9,23 @@ export class BetaSession {
   projectId: string;
 
   @Column({ name: 'document_id', nullable: true })
-  documentId?: string | null;
+  documentId?: string;
 
   @Column({ length: 200 })
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  description?: string | null;
+  description?: string;
 
   @Column({ default: 'open' })
   status: string;
 
   @Column({ name: 'created_by', nullable: true })
-  createdBy?: string | null;
+  createdBy?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
-  closedAt?: Date | null;
+  closedAt?: Date;
 }

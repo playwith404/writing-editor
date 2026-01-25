@@ -12,7 +12,7 @@ export class Plot {
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  description?: string | null;
+  description?: string;
 
   @Column({ name: 'order_index', default: 0 })
   orderIndex: number;

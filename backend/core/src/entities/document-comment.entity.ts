@@ -9,13 +9,13 @@ export class DocumentComment {
   documentId: string;
 
   @Column({ name: 'user_id', nullable: true })
-  userId?: string | null;
+  userId?: string;
 
   @Column({ type: 'text' })
   content: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  position?: Record<string, unknown> | null;
+  position?: Record<string, unknown>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

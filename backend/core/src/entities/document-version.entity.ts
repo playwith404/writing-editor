@@ -12,13 +12,13 @@ export class DocumentVersion {
   content: string;
 
   @Column({ name: 'word_count', nullable: true })
-  wordCount?: number | null;
+  wordCount?: number;
 
   @Column({ name: 'version_name', nullable: true })
-  versionName?: string | null;
+  versionName?: string;
 
   @Column({ name: 'created_by', nullable: true })
-  createdBy?: string | null;
+  createdBy?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

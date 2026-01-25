@@ -9,10 +9,10 @@ export class Storyboard {
   documentId: string;
 
   @Column({ length: 30, nullable: true })
-  provider?: string | null;
+  provider?: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  content?: Record<string, unknown> | null;
+  content?: Record<string, unknown>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

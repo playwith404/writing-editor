@@ -9,13 +9,13 @@ export class AudioAsset {
   documentId: string;
 
   @Column({ length: 100, nullable: true })
-  voice?: string | null;
+  voice?: string;
 
   @Column({ length: 30, nullable: true })
-  provider?: string | null;
+  provider?: string;
 
   @Column({ name: 'audio_url', type: 'text', nullable: true })
-  audioUrl?: string | null;
+  audioUrl?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

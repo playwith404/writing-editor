@@ -9,13 +9,13 @@ export class BetaFeedback {
   sessionId: string;
 
   @Column({ name: 'user_id', nullable: true })
-  userId?: string | null;
+  userId?: string;
 
   @Column({ nullable: true })
-  rating?: number | null;
+  rating?: number;
 
   @Column({ type: 'text', nullable: true })
-  comment?: string | null;
+  comment?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

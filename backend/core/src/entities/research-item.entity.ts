@@ -12,7 +12,7 @@ export class ResearchItem {
   query: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  result?: Record<string, unknown> | null;
+  result?: Record<string, unknown>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

@@ -9,7 +9,7 @@ export class PublishingExport {
   projectId: string;
 
   @Column({ name: 'document_id', nullable: true })
-  documentId?: string | null;
+  documentId?: string;
 
   @Column({ name: 'export_format', length: 20 })
   exportFormat: string;
@@ -18,7 +18,7 @@ export class PublishingExport {
   status: string;
 
   @Column({ name: 'file_url', type: 'text', nullable: true })
-  fileUrl?: string | null;
+  fileUrl?: string;
 
   @Column({ type: 'jsonb', default: () => "'{}'" })
   metadata: Record<string, unknown>;
@@ -27,5 +27,5 @@ export class PublishingExport {
   createdAt: Date;
 
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
-  completedAt?: Date | null;
+  completedAt?: Date;
 }

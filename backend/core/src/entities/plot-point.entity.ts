@@ -9,13 +9,13 @@ export class PlotPoint {
   plotId: string;
 
   @Column({ name: 'document_id', nullable: true })
-  documentId?: string | null;
+  documentId?: string;
 
   @Column({ length: 200 })
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  description?: string | null;
+  description?: string;
 
   @Column({ name: 'order_index', default: 0 })
   orderIndex: number;

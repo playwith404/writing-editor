@@ -12,7 +12,7 @@ export class Character {
   name: string;
 
   @Column({ length: 50, nullable: true })
-  role?: string | null;
+  role?: string;
 
   @Column({ type: 'jsonb', default: () => "'{}'" })
   profile: Record<string, unknown>;
@@ -24,13 +24,13 @@ export class Character {
   personality: Record<string, unknown>;
 
   @Column({ type: 'text', nullable: true })
-  backstory?: string | null;
+  backstory?: string;
 
   @Column({ name: 'speech_sample', type: 'text', nullable: true })
-  speechSample?: string | null;
+  speechSample?: string;
 
   @Column({ name: 'image_url', nullable: true })
-  imageUrl?: string | null;
+  imageUrl?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
