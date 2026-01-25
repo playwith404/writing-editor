@@ -83,6 +83,7 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER }}
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
           if [ -z "$SSH_HOST" ]; then
             echo "Missing SSH host (set Actions secret or variable: SSH_HOST)"
@@ -92,8 +93,8 @@ jobs:
             echo "Missing SSH user (set Actions secret or variable: SSH_USER)"
             exit 1
           fi
-          if [ -z "$SSH_PASSWORD" ]; then
-            echo "Missing SSH password (set Actions secret: SSH_PASSWORD)"
+          if [ -z "$SSH_PASSWORD" ] && [ -z "$SSH_KEY" ]; then
+            echo "Missing SSH auth (set Actions secret: SSH_KEY or SSH_PASSWORD)"
             exit 1
           fi
       - name: Ensure deploy directory exists
@@ -102,6 +103,8 @@ jobs:
           host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
           username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
           port: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
           script: |
             set -e
@@ -112,6 +115,8 @@ jobs:
           host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
           username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
           port: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
           source: "deploy/docker-compose.dev.yml"
           target: "/srv/cowrite"
@@ -121,6 +126,8 @@ jobs:
           host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
           username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
           port: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
           script: |
             set -e
