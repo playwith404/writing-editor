@@ -70,7 +70,7 @@ export const MentionList = forwardRef((props: MentionListProps, ref) => {
                 ))
             ) : (
                 <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    No result
+                    결과 없음
                 </div>
             )}
         </div>

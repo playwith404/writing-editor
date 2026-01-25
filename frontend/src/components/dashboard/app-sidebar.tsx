@@ -19,12 +19,12 @@ import {
 
 const items = [
     {
-        title: "Projects",
+        title: "프로젝트",
         url: "/projects",
         icon: BookOpen,
     },
     {
-        title: "Settings",
+        title: "설정",
         url: "/settings",
         icon: Settings,
     },
@@ -45,7 +45,7 @@ export function AppSidebar() {
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
-                    <SidebarGroupLabel>Application</SidebarGroupLabel>
+                    <SidebarGroupLabel>메뉴</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {items.map((item) => (

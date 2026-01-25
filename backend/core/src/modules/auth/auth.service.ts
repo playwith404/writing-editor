@@ -22,7 +22,7 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictException('Email already in use');
+      throw new ConflictException('이미 사용 중인 이메일입니다.');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -39,12 +39,12 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
 
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
 
     return this.issueTokens(user.id, user.email, user.role);
@@ -57,11 +57,11 @@ export class AuthService {
         secret: this.configService.get<string>('jwt.secret'),
       });
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
     }
 
     if (!payload || payload.type !== 'refresh') {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('유효하지 않은 리프레시 토큰입니다.');
     }
 
     const tokens = await this.refreshRepo.find({
@@ -79,7 +79,7 @@ export class AuthService {
     }
 
     if (!matched || matched.expiresAt < new Date()) {
-      throw new UnauthorizedException('Refresh token expired');
+      throw new UnauthorizedException('리프레시 토큰이 만료되었습니다.');
     }
 
     matched.revokedAt = new Date();

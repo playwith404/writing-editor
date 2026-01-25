@@ -15,10 +15,10 @@ interface TipTapEditorProps {
 const suggestion = {
     items: ({ query }: { query: string }) => {
         return [
-            'Elara Vance',
-            'Kaelen',
-            'The Silver Citadel',
-            'Magic System',
+            '엘라라 밴스',
+            '카엘렌',
+            '은빛 성채',
+            '마법 체계',
         ].filter(item => item.toLowerCase().startsWith(query.toLowerCase())).slice(0, 5)
     },
     render: () => {
@@ -87,7 +87,7 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
                 suggestion,
             }),
         ],
-        content: content || '<p>Start writing your story... Try typing @ to mention a character.</p>',
+        content: content || '<p>이야기를 시작해 보세요... @를 입력해 인물을 멘션할 수 있어요.</p>',
         editorProps: {
             attributes: {
                 class: 'prose prose-stone dark:prose-invert max-w-none focus:outline-none min-h-[500px] px-8 py-6',

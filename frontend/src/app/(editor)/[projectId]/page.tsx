@@ -19,20 +19,20 @@ export default function EditorPage() {
     const params = useParams()
     const { isSidebarOpen, isRightPanelOpen, toggleSidebar, toggleRightPanel, focusMode, setFocusMode } = useEditorStore()
 
-    // Mock Data for Tree
+    // 트리용 더미 데이터
     const treeData = [
         {
-            id: '1', name: 'Chapter 1: The Beginning', type: 'folder' as const, children: [
-                { id: '1-1', name: 'Scene 1: Morning', type: 'file' as const },
-                { id: '1-2', name: 'Scene 2: The Call', type: 'file' as const },
+            id: '1', name: '1장: 시작', type: 'folder' as const, children: [
+                { id: '1-1', name: '장면 1: 아침', type: 'file' as const },
+                { id: '1-2', name: '장면 2: 호출', type: 'file' as const },
             ]
         },
-        { id: '2', name: 'Chapter 2: Departure', type: 'folder' as const, children: [] },
+        { id: '2', name: '2장: 출발', type: 'folder' as const, children: [] },
     ]
 
     return (
         <div className="flex flex-col h-screen bg-background overflow-hidden">
-            {/* Header */}
+            {/* 헤더 */}
             <header className={cn("flex items-center justify-between px-4 py-2 border-b transition-all duration-300", focusMode && "h-0 opacity-0 overflow-hidden border-0 py-0")}>
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" asChild>
@@ -46,38 +46,38 @@ export default function EditorPage() {
                         </Button>
                     </div>
                     <div className="ml-2">
-                        <h1 className="text-sm font-semibold">The Silent Echo</h1>
+                        <h1 className="text-sm font-semibold">고요한 메아리</h1>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setFocusMode(true)}>
-                        <Focus className="mr-2 h-4 w-4" /> Focus
+                        <Focus className="mr-2 h-4 w-4" /> 집중 모드
                     </Button>
                     <Button variant="ghost" size="icon" onClick={toggleRightPanel} className={cn(isRightPanelOpen && "bg-accent")}>
                         <PanelRight className="h-4 w-4" />
                     </Button>
                     <Button variant="default" size="sm">
-                        <Save className="mr-2 h-4 w-4" /> Save
+                        <Save className="mr-2 h-4 w-4" /> 저장
                     </Button>
                 </div>
             </header>
 
-            {/* Floating Focus Mode Exit Button */}
+            {/* 집중 모드 종료 플로팅 버튼 */}
             {focusMode && (
                 <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-top-2">
                     <Button variant="secondary" size="sm" onClick={() => setFocusMode(false)} className="shadow-lg opacity-50 hover:opacity-100 transition-opacity">
-                        Exit Focus
+                        집중 모드 종료
                     </Button>
                 </div>
             )}
 
             <ResizablePanelGroup orientation="horizontal" className="flex-1">
-                {/* Sidebar Panel */}
+                {/* 사이드바 패널 */}
                 {isSidebarOpen && (
                     <>
                         <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className={cn("border-r bg-muted/10", focusMode && "hidden")}>
                             <div className="p-4 h-full flex flex-col">
-                                <div className="font-semibold text-xs text-muted-foreground mb-4 uppercase tracking-wider">Manuscript</div>
+                                <div className="font-semibold text-xs text-muted-foreground mb-4 uppercase tracking-wider">원고</div>
                                 <ProjectTree data={treeData} />
                             </div>
                         </ResizablePanel>
@@ -85,14 +85,14 @@ export default function EditorPage() {
                     </>
                 )}
 
-                {/* Main Editor Panel */}
+                {/* 메인 에디터 패널 */}
                 <ResizablePanel defaultSize={60}>
                     <div className="h-full overflow-y-auto bg-muted/30 flex justify-center p-8">
                         <TipTapEditor />
                     </div>
                 </ResizablePanel>
 
-                {/* Right Panel */}
+                {/* 오른쪽 패널 */}
                 {isRightPanelOpen && (
                     <>
                         <ResizableHandle />
