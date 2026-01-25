@@ -61,6 +61,9 @@ jobs:
   build-push:
     runs-on: ubuntu-latest
     needs: [test-core-sync, test-ai]
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || secrets.DOCKERHUB_USER }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKERHUB_PASSWORD || secrets.DOCKER_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,11 +71,21 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Check DockerHub secrets
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ]; then
+            echo "Missing DockerHub username secret (set DOCKERHUB_USERNAME)"
+            exit 1
+          fi
+          if [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "Missing DockerHub token secret (set DOCKERHUB_TOKEN)"
+            exit 1
+          fi
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Build and push core-api
         uses: docker/build-push-action@v5
@@ -107,6 +120,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Ensure deploy directory exists
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            mkdir -p /srv/cowrite
       - name: Copy compose file to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -126,6 +149,11 @@ jobs:
           script: |
             set -e
             cd /srv/cowrite
+            if [ -f deploy/docker-compose.dev.yml ] && [ ! -f docker-compose.dev.yml ]; then
+              cp deploy/docker-compose.dev.yml docker-compose.dev.yml
+            fi
+            test -f docker-compose.dev.yml
+            test -f .env
             docker compose -f docker-compose.dev.yml up -d redis
             docker compose -f docker-compose.dev.yml pull core-api sync-service ai-service
             docker compose -f docker-compose.dev.yml up -d --no-deps core-api sync-service ai-service
