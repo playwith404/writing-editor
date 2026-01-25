@@ -17,12 +17,14 @@ import { cn } from "@/lib/utils"
 export default function EditorPage() {
     const { isSidebarOpen, isRightPanelOpen, toggleSidebar, toggleRightPanel, focusMode, setFocusMode } = useEditorStore()
 
-    const sidebarDefaultSize = 20
-    const rightPanelDefaultSize = 25
-    const editorDefaultSize =
+    // react-resizable-panels v4: number는 px, string은 %로 해석됨.
+    const sidebarDefaultSize = "20"
+    const rightPanelDefaultSize = "25"
+    const editorDefaultSize = String(
         100
-        - (isSidebarOpen ? sidebarDefaultSize : 0)
-        - (isRightPanelOpen ? rightPanelDefaultSize : 0)
+        - (isSidebarOpen ? Number(sidebarDefaultSize) : 0)
+        - (isRightPanelOpen ? Number(rightPanelDefaultSize) : 0)
+    )
 
     // 트리용 더미 데이터
     const treeData = [
@@ -80,7 +82,7 @@ export default function EditorPage() {
                 {/* 사이드바 패널 */}
                 {isSidebarOpen && (
                     <>
-                        <ResizablePanel defaultSize={sidebarDefaultSize} minSize={15} maxSize={30} className={cn("min-w-0 border-r bg-muted/10", focusMode && "hidden")}>
+                        <ResizablePanel defaultSize={sidebarDefaultSize} minSize="15" maxSize="30" className={cn("min-w-0 border-r bg-muted/10", focusMode && "hidden")}>
                             <div className="p-4 h-full flex flex-col">
                                 <div className="font-semibold text-xs text-muted-foreground mb-4 uppercase tracking-wider">원고</div>
                                 <ProjectTree data={treeData} />
@@ -91,7 +93,7 @@ export default function EditorPage() {
                 )}
 
                 {/* 메인 에디터 패널 */}
-                <ResizablePanel defaultSize={editorDefaultSize} minSize={40} className="min-w-0">
+                <ResizablePanel defaultSize={editorDefaultSize} minSize="40" className="min-w-0">
                     <div className="h-full overflow-y-auto bg-muted/30 flex justify-center p-8">
                         <TipTapEditor />
                     </div>
@@ -101,7 +103,7 @@ export default function EditorPage() {
                 {isRightPanelOpen && (
                     <>
                         <ResizableHandle />
-                        <ResizablePanel defaultSize={rightPanelDefaultSize} minSize={20} maxSize={40} className={cn("min-w-0", focusMode && "hidden")}>
+                        <ResizablePanel defaultSize={rightPanelDefaultSize} minSize="20" maxSize="40" className={cn("min-w-0", focusMode && "hidden")}>
                             <RightPanel />
                         </ResizablePanel>
                     </>
