@@ -122,32 +122,50 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Check SSH secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER || vars.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          if [ -z "$SSH_HOST" ]; then
+            echo "Missing SSH host (set Actions secret or variable: SSH_HOST)"
+            exit 1
+          fi
+          if [ -z "$SSH_USER" ]; then
+            echo "Missing SSH user (set Actions secret or variable: SSH_USER)"
+            exit 1
+          fi
+          if [ -z "$SSH_PASSWORD" ]; then
+            echo "Missing SSH password (set Actions secret: SSH_PASSWORD)"
+            exit 1
+          fi
       - name: Ensure deploy directory exists
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
           script: |
             set -e
             mkdir -p /srv/cowrite
       - name: Copy compose file to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
           source: "deploy/docker-compose.dev.yml"
           target: "/srv/cowrite"
       - name: Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          host: ${{ secrets.SSH_HOST || vars.SSH_HOST }}
+          username: ${{ secrets.SSH_USER || vars.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT || vars.SSH_PORT || '22' }}
           script: |
             set -e
             cd /srv/cowrite
