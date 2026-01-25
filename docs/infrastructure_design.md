@@ -185,7 +185,7 @@ services:
     image: redis:7-alpine
     container_name: cowrite-redis
     ports:
-      - "6379:6379"
+      - "6879:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
