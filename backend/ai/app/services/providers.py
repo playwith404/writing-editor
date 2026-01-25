@@ -33,7 +33,7 @@ def _gemini_endpoint(model: str) -> str:
 async def call_openai(prompt: str, model: Optional[str] = None) -> str:
     api_key = _get_env("OPENAI_API_KEY")
     if not api_key:
-        return f"[stub] {prompt}"
+        return f"[임시 응답] {prompt}"
 
     payload = {
         "model": model or _get_env("OPENAI_MODEL", "gpt-4o-mini"),
@@ -51,7 +51,7 @@ async def call_openai(prompt: str, model: Optional[str] = None) -> str:
         )
 
     if resp.status_code >= 400:
-        raise ProviderError(f"OpenAI error: {resp.text}")
+        raise ProviderError(f"OpenAI 오류: {resp.text}")
 
     data = resp.json()
     return data.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -60,7 +60,7 @@ async def call_openai(prompt: str, model: Optional[str] = None) -> str:
 async def call_anthropic(prompt: str, model: Optional[str] = None) -> str:
     api_key = _get_env("ANTHROPIC_API_KEY")
     if not api_key:
-        return f"[stub] {prompt}"
+        return f"[임시 응답] {prompt}"
 
     payload = {
         "model": model or _get_env("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest"),
@@ -79,7 +79,7 @@ async def call_anthropic(prompt: str, model: Optional[str] = None) -> str:
         )
 
     if resp.status_code >= 400:
-        raise ProviderError(f"Anthropic error: {resp.text}")
+        raise ProviderError(f"Anthropic 오류: {resp.text}")
 
     data = resp.json()
     content = data.get("content", [])
@@ -91,7 +91,7 @@ async def call_anthropic(prompt: str, model: Optional[str] = None) -> str:
 async def call_gemini(prompt: str, model: Optional[str] = None) -> str:
     api_key = _get_env("GEMINI_API_KEY")
     if not api_key:
-        return f"[stub] {prompt}"
+        return f"[임시 응답] {prompt}"
 
     model_name = model or _get_env("GEMINI_MODEL", "gemini-1.5-pro")
 
@@ -109,7 +109,7 @@ async def call_gemini(prompt: str, model: Optional[str] = None) -> str:
         )
 
     if resp.status_code >= 400:
-        raise ProviderError(f"Gemini error: {resp.text}")
+        raise ProviderError(f"Gemini 오류: {resp.text}")
 
     data = resp.json()
     candidates = data.get("candidates", [])
