@@ -124,7 +124,7 @@ services:
     build:
       context: ./backend/core
       dockerfile: Dockerfile
-    container_name: cowrite-core
+    container_name: cowrite-backend
     ports:
       - "8100:3000"
     environment:
