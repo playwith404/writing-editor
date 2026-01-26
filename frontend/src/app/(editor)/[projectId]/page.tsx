@@ -5,6 +5,7 @@ import { TipTapEditor } from "@/components/editor/tiptap-editor"
 import { ProjectTree } from "@/components/editor/project-tree"
 import { RightPanel } from "@/components/editor/right-panel"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ChevronLeft, Save, PanelLeft, PanelRight, Focus, Users } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -44,6 +45,7 @@ export default function EditorPage() {
     const [dirty, setDirty] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+    const [newDocTitle, setNewDocTitle] = useState("")
 
     const projectQuery = useQuery({
         queryKey: ["projects", projectId],
@@ -94,6 +96,23 @@ export default function EditorPage() {
         onError: (err) => {
             if (err instanceof ApiError) setSaveError(err.message)
             else setSaveError("저장에 실패했습니다.")
+        },
+    })
+
+    const createDocMutation = useMutation({
+        mutationFn: async (payload: { title: string }) => {
+            return api.documents.create({
+                projectId,
+                type: "chapter",
+                title: payload.title,
+                content: "",
+                orderIndex: documents.length,
+            })
+        },
+        onSuccess: async (created: any) => {
+            await queryClient.invalidateQueries({ queryKey: ["documents", projectId] })
+            setSelectedDocumentId(created.id)
+            setNewDocTitle("")
         },
     })
 
@@ -235,6 +254,20 @@ export default function EditorPage() {
                         <ResizablePanel defaultSize={sidebarDefaultSize} minSize="15" maxSize="30" className={cn("min-w-0 border-r bg-muted/10", focusMode && "hidden")}>
                             <div className="p-4 h-full flex flex-col">
                                 <div className="font-semibold text-xs text-muted-foreground mb-4 uppercase tracking-wider">원고</div>
+                                <div className="flex gap-2 mb-3">
+                                    <Input
+                                        value={newDocTitle}
+                                        onChange={(e) => setNewDocTitle(e.target.value)}
+                                        placeholder="새 문서 제목"
+                                    />
+                                    <Button
+                                        size="sm"
+                                        disabled={!newDocTitle.trim() || createDocMutation.isPending}
+                                        onClick={() => createDocMutation.mutate({ title: newDocTitle.trim() })}
+                                    >
+                                        추가
+                                    </Button>
+                                </div>
                                 <ProjectTree
                                     data={treeData}
                                     onSelect={(item) => {
