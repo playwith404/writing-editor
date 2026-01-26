@@ -1,15 +1,16 @@
 "use client"
 
-import { useEditor, EditorContent, ReactRenderer } from '@tiptap/react'
+import { Editor, useEditor, EditorContent, ReactRenderer } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Mention from '@tiptap/extension-mention'
 import tippy from 'tippy.js'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { MentionList } from './mention-list'
 
 interface TipTapEditorProps {
     content?: string
     onChange?: (content: string) => void
+    onReady?: (editor: Editor) => void
 }
 
 const suggestion = {
@@ -72,7 +73,8 @@ const suggestion = {
     },
 }
 
-export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
+export function TipTapEditor({ content, onChange, onReady }: TipTapEditorProps) {
+    const applyingRef = useRef(false)
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
@@ -87,22 +89,35 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
                 suggestion,
             }),
         ],
-        content: content || '<p>이야기를 시작해 보세요... @를 입력해 인물을 멘션할 수 있어요.</p>',
+        content: content ?? '<p></p>',
         editorProps: {
             attributes: {
                 class: 'prose prose-stone dark:prose-invert max-w-none focus:outline-none min-h-[500px] px-8 py-6',
             },
         },
         onUpdate: ({ editor }) => {
+            if (applyingRef.current) return
             onChange?.(editor.getHTML())
         }
     })
 
     useEffect(() => {
-        if (editor && content && editor.getHTML() !== content) {
-            // content sync logic if needed
+        if (!editor) return
+        if (content === undefined) return
+        if (editor.getHTML() === content) return
+
+        applyingRef.current = true
+        try {
+            editor.commands.setContent(content || '<p></p>', { emitUpdate: false })
+        } finally {
+            applyingRef.current = false
         }
     }, [content, editor])
+
+    useEffect(() => {
+        if (!editor) return
+        onReady?.(editor)
+    }, [editor, onReady])
 
     if (!editor) {
         return null

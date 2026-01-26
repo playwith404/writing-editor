@@ -16,6 +16,7 @@ import {
     SidebarMenuItem,
     SidebarHeader,
 } from "@/components/ui/sidebar"
+import { LogoutButton } from "@/components/auth/logout-button"
 
 const items = [
     {
@@ -59,6 +60,13 @@ export function AppSidebar() {
                                 </SidebarMenuItem>
                             ))}
                         </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup>
+                    <SidebarGroupLabel>계정</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <LogoutButton />
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
