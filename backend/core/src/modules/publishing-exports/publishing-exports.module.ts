@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PublishingExportsService } from './publishing-exports.service';
 import { PublishingExportsController } from './publishing-exports.controller';
-import { PublishingExport } from '../../entities';
+import { Document, Project, PublishingExport } from '../../entities';
+import { AccessModule } from '../../common/access/access.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PublishingExport])],
+  imports: [TypeOrmModule.forFeature([PublishingExport, Document, Project]), AccessModule],
   providers: [PublishingExportsService],
   controllers: [PublishingExportsController],
 })

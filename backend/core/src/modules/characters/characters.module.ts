@@ -4,9 +4,10 @@ import { CharactersService } from './characters.service';
 import { CharactersController } from './characters.controller';
 import { Character } from '../../entities';
 import { SearchModule } from '../search/search.module';
+import { AccessModule } from '../../common/access/access.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Character]), SearchModule],
+  imports: [TypeOrmModule.forFeature([Character]), SearchModule, AccessModule],
   providers: [CharactersService],
   controllers: [CharactersController],
 })

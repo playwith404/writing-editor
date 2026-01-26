@@ -18,6 +18,7 @@ import { RelationshipsModule } from './modules/relationships/relationships.modul
 import { PlotsModule } from './modules/plots/plots.module';
 import { PlotPointsModule } from './modules/plot-points/plot-points.module';
 import { WritingGoalsModule } from './modules/writing-goals/writing-goals.module';
+import { AiModule } from './modules/ai/ai.module';
 import { AiUsageModule } from './modules/ai-usage/ai-usage.module';
 import { AiRequestsModule } from './modules/ai-requests/ai-requests.module';
 import { BetaSessionsModule } from './modules/beta-sessions/beta-sessions.module';
@@ -64,6 +65,7 @@ import { StatsModule } from './modules/stats/stats.module';
     PlotsModule,
     PlotPointsModule,
     WritingGoalsModule,
+    AiModule,
     AiUsageModule,
     AiRequestsModule,
     BetaSessionsModule,

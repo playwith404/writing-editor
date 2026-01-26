@@ -14,6 +14,9 @@ export class AudioAsset {
   @Column({ length: 30, nullable: true })
   provider?: string;
 
+  @Column({ type: 'text', nullable: true })
+  script?: string;
+
   @Column({ name: 'audio_url', type: 'text', nullable: true })
   audioUrl?: string;
 

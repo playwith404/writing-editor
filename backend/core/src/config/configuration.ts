@@ -19,4 +19,7 @@ export default () => ({
     node: process.env.ELASTICSEARCH_NODE ?? 'http://localhost:9200',
     apiKey: process.env.ELASTICSEARCH_API_KEY,
   },
+  ai: {
+    serviceUrl: process.env.AI_SERVICE_URL ?? 'http://ai-service:8000',
+  },
 });

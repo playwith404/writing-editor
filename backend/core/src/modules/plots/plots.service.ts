@@ -1,22 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CrudService } from '../../common/crud/crud.service';
+import { ProjectAccessService } from '../../common/access/project-access.service';
+import { ProjectScopedCrudService } from '../../common/access/project-scoped-crud.service';
 import { Plot } from '../../entities';
 import { SearchService } from '../search/search.service';
 
 @Injectable()
-export class PlotsService extends CrudService<Plot> {
+export class PlotsService extends ProjectScopedCrudService<Plot> {
   constructor(
     @InjectRepository(Plot)
     repo: Repository<Plot>,
     private readonly searchService: SearchService,
+    projectAccessService: ProjectAccessService,
   ) {
-    super(repo);
+    super(repo, projectAccessService);
   }
 
-  override async create(dto: Partial<Plot>): Promise<Plot> {
-    const plot = await super.create(dto);
+  override async createForUser(userId: string | undefined, dto: Partial<Plot>): Promise<Plot> {
+    const plot = await super.createForUser(userId, dto);
     await this.searchService.indexDocument('plots', plot.id, {
       id: plot.id,
       projectId: plot.projectId,
@@ -26,8 +28,8 @@ export class PlotsService extends CrudService<Plot> {
     return plot;
   }
 
-  override async update(id: string, dto: Partial<Plot>): Promise<Plot | null> {
-    const plot = await super.update(id, dto);
+  override async updateForUser(userId: string | undefined, id: string, dto: Partial<Plot>): Promise<Plot | null> {
+    const plot = await super.updateForUser(userId, id, dto);
     if (plot) {
       await this.searchService.indexDocument('plots', plot.id, {
         id: plot.id,

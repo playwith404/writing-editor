@@ -54,11 +54,25 @@ export class SearchService implements OnModuleInit {
     }
   }
 
-  async search(query: string, options?: { projectId?: string; type?: string }) {
-    const indices = options?.type ? [options.type] : Object.values(this.indices);
+  async search(query: string, options?: { projectIds?: string[]; type?: string }) {
+    const allowed = new Set<string>(Object.values(this.indices));
+    const type = options?.type && allowed.has(options.type) ? options.type : undefined;
+
+    const indices = type
+      ? [type]
+      : [
+          this.indices.documents,
+          this.indices.characters,
+          this.indices.worldSettings,
+          this.indices.plots,
+        ];
+
     const filters = [] as any[];
-    if (options?.projectId) {
-      filters.push({ term: { projectId: options.projectId } });
+    const projectIds = options?.projectIds?.filter(Boolean) ?? [];
+    if (projectIds.length > 0) {
+      filters.push({ terms: { projectId: projectIds } });
+    } else {
+      return [];
     }
 
     const { hits } = await this.client.search({
@@ -75,6 +89,36 @@ export class SearchService implements OnModuleInit {
             },
           ],
           filter: filters,
+        },
+      },
+    });
+
+    return hits.hits.map((hit) => ({
+      id: hit._id,
+      index: hit._index,
+      score: hit._score,
+      source: hit._source,
+    }));
+  }
+
+  async searchProjects(query: string, projectIds: string[]) {
+    const ids = projectIds?.filter(Boolean) ?? [];
+    if (ids.length === 0) return [];
+
+    const { hits } = await this.client.search({
+      index: this.indices.projects,
+      query: {
+        bool: {
+          must: [
+            {
+              multi_match: {
+                query,
+                fields: ['title^3', 'description', 'genre'],
+                fuzziness: 'AUTO',
+              },
+            },
+          ],
+          filter: [{ ids: { values: ids } }],
         },
       },
     });

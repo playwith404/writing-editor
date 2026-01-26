@@ -294,9 +294,13 @@ CREATE TABLE IF NOT EXISTS audio_assets (
     document_id     UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     voice           VARCHAR(100),
     provider        VARCHAR(30),
+    script          TEXT,
     audio_url       TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE IF EXISTS audio_assets
+    ADD COLUMN IF NOT EXISTS script TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_audio_assets_document ON audio_assets(document_id);
 

@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StatsService } from './stats.service';
 import { StatsController } from './stats.controller';
+import { AccessModule } from '../../common/access/access.module';
 import { Character, Document, Plot, WorldSetting } from '../../entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Document, Character, WorldSetting, Plot])],
+  imports: [TypeOrmModule.forFeature([Document, Character, WorldSetting, Plot]), AccessModule],
   providers: [StatsService],
   controllers: [StatsController],
 })

@@ -1,22 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CrudService } from '../../common/crud/crud.service';
+import { ProjectAccessService } from '../../common/access/project-access.service';
+import { ProjectScopedCrudService } from '../../common/access/project-scoped-crud.service';
 import { Character } from '../../entities';
 import { SearchService } from '../search/search.service';
 
 @Injectable()
-export class CharactersService extends CrudService<Character> {
+export class CharactersService extends ProjectScopedCrudService<Character> {
   constructor(
     @InjectRepository(Character)
     repo: Repository<Character>,
     private readonly searchService: SearchService,
+    projectAccessService: ProjectAccessService,
   ) {
-    super(repo);
+    super(repo, projectAccessService);
   }
 
-  override async create(dto: Partial<Character>): Promise<Character> {
-    const character = await super.create(dto);
+  override async createForUser(userId: string | undefined, dto: Partial<Character>): Promise<Character> {
+    const character = await super.createForUser(userId, dto);
     await this.searchService.indexDocument('characters', character.id, {
       id: character.id,
       projectId: character.projectId,
@@ -27,8 +29,8 @@ export class CharactersService extends CrudService<Character> {
     return character;
   }
 
-  override async update(id: string, dto: Partial<Character>): Promise<Character | null> {
-    const character = await super.update(id, dto);
+  override async updateForUser(userId: string | undefined, id: string, dto: Partial<Character>): Promise<Character | null> {
+    const character = await super.updateForUser(userId, id, dto);
     if (character) {
       await this.searchService.indexDocument('characters', character.id, {
         id: character.id,

@@ -13,11 +13,40 @@ export class UsersService {
   ) {}
 
   async findAll(): Promise<User[]> {
-    return this.usersRepo.find();
+    return this.usersRepo.find({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        role: true,
+        oauthProvider: true,
+        oauthId: true,
+        settings: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      } as any,
+    });
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.usersRepo.findOne({ where: { id } });
+    return this.usersRepo.findOne({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        role: true,
+        oauthProvider: true,
+        oauthId: true,
+        settings: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      } as any,
+    });
   }
 
   async findByEmail(email: string): Promise<User | null> {
