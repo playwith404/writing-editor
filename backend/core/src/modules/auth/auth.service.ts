@@ -98,15 +98,23 @@ export class AuthService {
   async resendVerification(email: string) {
     const enabled = Boolean(this.configService.get<boolean>('auth.emailVerificationEnabled'));
     if (!enabled) return { success: true };
-    if (!email) {
-      return { success: true };
-    }
+
+    const message = '인증 메일을 발송했습니다. 메일함을 확인해 주세요. (추가 발송은 10분마다 가능합니다.)';
+    const cooldownMs = 10 * 60 * 1000;
+
+    if (!email) return { success: true, message };
+
     const user = await this.usersService.findByEmail(email);
-    if (!user) return { success: true };
-    if (user.emailVerifiedAt) return { success: true };
+    if (!user) return { success: true, message };
+    if (user.emailVerifiedAt) return { success: true, message };
+
+    const latest = await this.verifyRepo.findOne({ where: { userId: user.id } as any, order: { createdAt: 'DESC' } });
+    if (latest?.createdAt && Date.now() - latest.createdAt.getTime() < cooldownMs) {
+      return { success: true, message };
+    }
 
     await this.sendVerification(user.id, user.email, user.name);
-    return { success: true, message: '인증 메일을 다시 발송했습니다.' };
+    return { success: true, message };
   }
 
   async refresh(refreshToken: string) {
