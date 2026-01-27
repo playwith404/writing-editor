@@ -36,6 +36,9 @@ export class User {
   @Column({ type: 'jsonb', default: () => "'{}'" })
   settings: Record<string, unknown>;
 
+  @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })
+  emailVerifiedAt?: Date;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

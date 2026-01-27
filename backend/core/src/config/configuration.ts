@@ -2,6 +2,7 @@ export default () => ({
   app: {
     port: Number(process.env.PORT ?? 3000),
     nodeEnv: process.env.NODE_ENV ?? 'development',
+    baseUrl: process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3100',
   },
   database: {
     host: process.env.DB_HOST ?? 'localhost',
@@ -21,5 +22,13 @@ export default () => ({
   },
   ai: {
     serviceUrl: process.env.AI_SERVICE_URL ?? 'http://ai-service:8000',
+  },
+  smtp: {
+    host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: (process.env.SMTP_SECURE ?? '').toLowerCase() === 'true' || process.env.SMTP_SECURE === '1',
+    user: process.env.SMTP_USER,
+    password: process.env.SMTP_PASSWORD,
+    from: process.env.SMTP_FROM,
   },
 });

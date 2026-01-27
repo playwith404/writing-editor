@@ -2,12 +2,14 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, MoreThan } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshToken } from '../../entities';
+import { EmailVerificationToken, RefreshToken } from '../../entities';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -15,8 +17,11 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
     @InjectRepository(RefreshToken)
     private readonly refreshRepo: Repository<RefreshToken>,
+    @InjectRepository(EmailVerificationToken)
+    private readonly verifyRepo: Repository<EmailVerificationToken>,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -33,7 +38,8 @@ export class AuthService {
       avatarUrl: dto.avatarUrl,
     });
 
-    return this.issueTokens(user.id, user.email, user.role);
+    await this.sendVerification(user.id, user.email, user.name);
+    return { success: true, message: '인증 메일을 발송했습니다. 메일함을 확인해 주세요.' };
   }
 
   async login(dto: LoginDto) {
@@ -47,7 +53,51 @@ export class AuthService {
       throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
 
+    if (!user.emailVerifiedAt) {
+      throw new UnauthorizedException('이메일 인증이 필요합니다.');
+    }
+
     return this.issueTokens(user.id, user.email, user.role);
+  }
+
+  async verifyEmail(token: string) {
+    if (!token) {
+      throw new UnauthorizedException('유효하지 않은 인증 토큰입니다.');
+    }
+    const tokenHash = this.hashToken(token);
+    const record = await this.verifyRepo.findOne({
+      where: {
+        tokenHash,
+        usedAt: IsNull(),
+        expiresAt: MoreThan(new Date()),
+      } as any,
+    });
+
+    if (!record) {
+      throw new UnauthorizedException('유효하지 않거나 만료된 인증 토큰입니다.');
+    }
+
+    record.usedAt = new Date();
+    await this.verifyRepo.save(record);
+
+    await this.usersService.update(record.userId, { emailVerifiedAt: new Date() } as any);
+    const user = await this.usersService.findById(record.userId);
+    if (!user) {
+      throw new UnauthorizedException('유저 정보를 찾을 수 없습니다.');
+    }
+    return this.issueTokens(user.id, user.email, user.role);
+  }
+
+  async resendVerification(email: string) {
+    if (!email) {
+      return { success: true };
+    }
+    const user = await this.usersService.findByEmail(email);
+    if (!user) return { success: true };
+    if (user.emailVerifiedAt) return { success: true };
+
+    await this.sendVerification(user.id, user.email, user.name);
+    return { success: true, message: '인증 메일을 다시 발송했습니다.' };
   }
 
   async refresh(refreshToken: string) {
@@ -124,6 +174,29 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  private hashToken(raw: string) {
+    return createHash('sha256').update(raw).digest('hex');
+  }
+
+  private async sendVerification(userId: string, email: string, name?: string) {
+    // 기존 토큰은 사용 처리 (재발급)
+    await this.verifyRepo.update({ userId, usedAt: IsNull() } as any, { usedAt: new Date() } as any);
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.verifyRepo.save(
+      this.verifyRepo.create({
+        userId,
+        tokenHash,
+        expiresAt,
+      } as any),
+    );
+
+    await this.mailService.sendEmailVerification(email, rawToken, name);
   }
 
   private parseExpiryMs(value?: string) {

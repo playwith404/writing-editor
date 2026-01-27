@@ -87,7 +87,11 @@ export const api = {
     login: (dto: { email: string; password: string }) =>
       apiFetch<{ accessToken: string; refreshToken: string }>("/auth/login", { method: "POST", body: dto }),
     register: (dto: { email: string; name: string; password: string }) =>
-      apiFetch<{ accessToken: string; refreshToken: string }>("/auth/register", { method: "POST", body: dto }),
+      apiFetch<{ success: true; message?: string }>("/auth/register", { method: "POST", body: dto }),
+    verifyEmail: (dto: { token: string }) =>
+      apiFetch<{ accessToken: string; refreshToken: string }>("/auth/verify-email", { method: "POST", body: dto }),
+    resendVerification: (dto: { email: string }) =>
+      apiFetch<{ success: true; message?: string }>("/auth/resend-verification", { method: "POST", body: dto }),
     logout: () => apiFetch<{ success: true }>("/auth/logout", { method: "POST" }),
   },
   projects: {
@@ -122,4 +126,3 @@ export const api = {
     tts: (dto: any) => apiFetch<any>("/audio-assets/generate", { method: "POST", body: dto }),
   },
 }
-

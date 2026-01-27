@@ -25,6 +25,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.11.5",
+    "nodemailer": "^6.9.16",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.20"
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/nodemailer": "^6.4.14",
     "@types/passport-jwt": "^3.0.13",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",

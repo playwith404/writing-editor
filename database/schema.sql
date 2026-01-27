@@ -12,10 +12,14 @@ CREATE TABLE IF NOT EXISTS users (
     oauth_provider  VARCHAR(20),
     oauth_id        VARCHAR(255),
     settings        JSONB DEFAULT '{}',
+    email_verified_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW(),
     deleted_at      TIMESTAMPTZ
 );
+
+ALTER TABLE IF EXISTS users
+    ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_oauth ON users(oauth_provider, oauth_id);
@@ -34,6 +38,19 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
+
+-- Email verification tokens
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash      VARCHAR(255) NOT NULL,
+    expires_at      TIMESTAMPTZ NOT NULL,
+    used_at         TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verify_user ON email_verification_tokens(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_email_verify_token ON email_verification_tokens(token_hash);
 
 -- Projects
 CREATE TABLE IF NOT EXISTS projects (
