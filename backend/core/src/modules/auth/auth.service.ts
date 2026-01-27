@@ -10,6 +10,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { EmailChangeToken, EmailVerificationToken, PasswordResetToken, RefreshToken } from '../../entities';
 import { MailService } from '../mail/mail.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AuthService {
@@ -28,7 +29,7 @@ export class AuthService {
     private readonly emailChangeRepo: Repository<EmailChangeToken>,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, meta?: { userAgent?: string; ipAddress?: string }) {
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('이미 사용 중인 이메일입니다.');
@@ -45,14 +46,14 @@ export class AuthService {
     const enabled = Boolean(this.configService.get<boolean>('auth.emailVerificationEnabled'));
     if (!enabled) {
       await this.usersService.update(user.id, { emailVerifiedAt: new Date() } as any);
-      return this.issueTokens(user.id, user.email, user.role);
+      return this.issueTokens(user.id, user.email, user.role, meta);
     }
 
     await this.sendVerification(user.id, user.email, user.name);
     return { success: true, message: '인증 메일을 발송했습니다. 메일함을 확인해 주세요.' };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, meta?: { userAgent?: string; ipAddress?: string }) {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
@@ -68,7 +69,7 @@ export class AuthService {
       throw new UnauthorizedException('이메일 인증이 필요합니다.');
     }
 
-    return this.issueTokens(user.id, user.email, user.role);
+    return this.issueTokens(user.id, user.email, user.role, meta);
   }
 
   async verifyEmail(token: string) {
@@ -164,7 +165,12 @@ export class AuthService {
     return { success: true };
   }
 
-  private async issueTokens(userId: string, email?: string, role?: string) {
+  private async issueTokens(
+    userId: string,
+    email?: string,
+    role?: string,
+    meta?: { userAgent?: string; ipAddress?: string },
+  ) {
     if (!email || !role) {
       const user = await this.usersService.findById(userId);
       email = email ?? user?.email;
@@ -188,6 +194,8 @@ export class AuthService {
         userId,
         tokenHash,
         expiresAt,
+        userAgent: meta?.userAgent,
+        ipAddress: meta?.ipAddress,
       }),
     );
 
@@ -245,6 +253,47 @@ export class AuthService {
       throw new UnauthorizedException('로그인이 필요합니다.');
     }
     return this.usersService.findById(userId);
+  }
+
+  async updateProfile(userId: string | undefined, dto: UpdateProfileDto) {
+    if (!userId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+    const next: any = {};
+    if (dto.name !== undefined) next.name = dto.name;
+    if (dto.avatarUrl !== undefined) next.avatarUrl = dto.avatarUrl;
+    await this.usersService.update(userId, next);
+    return this.usersService.findById(userId);
+  }
+
+  async listSessions(userId: string | undefined) {
+    if (!userId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+    const sessions = await this.refreshRepo.find({
+      where: { userId } as any,
+      order: { createdAt: 'DESC' } as any,
+      take: 20,
+    });
+    return sessions.map((s) => ({
+      id: s.id,
+      createdAt: s.createdAt,
+      expiresAt: s.expiresAt,
+      revokedAt: s.revokedAt,
+      userAgent: s.userAgent,
+      ipAddress: s.ipAddress,
+    }));
+  }
+
+  async revokeSession(userId: string | undefined, sessionId: string) {
+    if (!userId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+    if (!sessionId) {
+      throw new BadRequestException('sessionId가 필요합니다.');
+    }
+    await this.refreshRepo.update({ id: sessionId, userId, revokedAt: IsNull() } as any, { revokedAt: new Date() } as any);
+    return { success: true };
   }
 
   async requestPasswordReset(email: string) {
@@ -406,5 +455,41 @@ export class AuthService {
 
     await this.refreshRepo.update({ userId: user.id, revokedAt: IsNull() } as any, { revokedAt: new Date() } as any);
     return this.issueTokens(user.id, record.newEmail, user.role);
+  }
+
+  async deleteAccount(userId: string | undefined, password?: string) {
+    if (!userId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+
+    const user = await this.usersService.findByIdWithPassword(userId);
+    if (!user) {
+      throw new UnauthorizedException('유저 정보를 찾을 수 없습니다.');
+    }
+
+    if (user.passwordHash) {
+      if (!password) {
+        throw new BadRequestException('비밀번호가 필요합니다.');
+      }
+      const ok = await bcrypt.compare(password, user.passwordHash);
+      if (!ok) {
+        throw new UnauthorizedException('비밀번호가 올바르지 않습니다.');
+      }
+    }
+
+    await this.refreshRepo.update({ userId: user.id, revokedAt: IsNull() } as any, { revokedAt: new Date() } as any);
+
+    const anonymizedEmail = `deleted+${user.id}@cowrite.local`;
+    await this.usersService.update(user.id, {
+      email: anonymizedEmail,
+      name: '탈퇴한 사용자',
+      passwordHash: null,
+      oauthProvider: null,
+      oauthId: null,
+      emailVerifiedAt: null,
+    } as any);
+
+    await this.usersService.softDelete(user.id);
+    return { success: true };
   }
 }

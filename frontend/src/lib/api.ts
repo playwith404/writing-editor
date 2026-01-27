@@ -57,6 +57,39 @@ async function apiFetch<T>(path: string, init?: { method?: ApiMethod; body?: any
   return data as T
 }
 
+async function apiUpload<T>(path: string, formData: FormData, retry = true): Promise<T> {
+  const url = `${getApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`
+  const accessToken = getAccessToken()
+  const headers: Record<string, string> = {}
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+  })
+
+  const text = await resp.text()
+  const data = text ? JSON.parse(text) : null
+
+  if (resp.status === 401 && retry) {
+    const refreshed = await tryRefresh()
+    if (refreshed) {
+      return apiUpload<T>(path, formData, false)
+    }
+  }
+
+  if (!resp.ok) {
+    const message =
+      (data && typeof data === "object" && ("message" in (data as any) ? (data as any).message : (data as any).error)) ||
+      resp.statusText ||
+      "요청에 실패했습니다."
+    throw new ApiError(String(message), resp.status, data)
+  }
+
+  return data as T
+}
+
 async function tryRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) {
@@ -103,7 +136,20 @@ export const api = {
       apiFetch<{ success: true; message?: string }>("/auth/request-email-change", { method: "POST", body: dto }),
     confirmEmailChange: (dto: { token: string }) =>
       apiFetch<{ accessToken: string; refreshToken: string }>("/auth/confirm-email-change", { method: "POST", body: dto }),
+    updateMe: (dto: { name?: string; avatarUrl?: string }) =>
+      apiFetch<any>("/auth/me", { method: "PATCH", body: dto }),
+    sessions: () => apiFetch<any[]>("/auth/sessions"),
+    revokeSession: (id: string) => apiFetch<{ success: true }>(`/auth/sessions/${id}`, { method: "DELETE" }),
+    deleteAccount: (dto: { password?: string }) => apiFetch<{ success: true }>("/auth/delete-account", { method: "POST", body: dto }),
     logout: () => apiFetch<{ success: true }>("/auth/logout", { method: "POST" }),
+  },
+  media: {
+    upload: (file: File, dto?: { projectId?: string }) => {
+      const fd = new FormData()
+      fd.append("file", file)
+      if (dto?.projectId) fd.append("projectId", dto.projectId)
+      return apiUpload<{ id: string; url: string; mimeType: string; size: number }>("/media/upload", fd)
+    },
   },
   billing: {
     plans: () => apiFetch<any[]>("/billing/plans"),

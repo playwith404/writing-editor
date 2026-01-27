@@ -70,4 +70,8 @@ export class UsersService {
   async remove(id: string): Promise<void> {
     await this.usersRepo.delete({ id });
   }
+
+  async softDelete(id: string): Promise<void> {
+    await this.usersRepo.softDelete({ id } as any);
+  }
 }
