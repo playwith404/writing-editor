@@ -87,7 +87,7 @@ export const api = {
     login: (dto: { email: string; password: string }) =>
       apiFetch<{ accessToken: string; refreshToken: string }>("/auth/login", { method: "POST", body: dto }),
     register: (dto: { email: string; name: string; password: string }) =>
-      apiFetch<{ success: true; message?: string }>("/auth/register", { method: "POST", body: dto }),
+      apiFetch<{ accessToken: string; refreshToken: string } | { success: true; message?: string }>("/auth/register", { method: "POST", body: dto }),
     verifyEmail: (dto: { token: string }) =>
       apiFetch<{ accessToken: string; refreshToken: string }>("/auth/verify-email", { method: "POST", body: dto }),
     resendVerification: (dto: { email: string }) =>

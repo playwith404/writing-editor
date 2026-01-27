@@ -16,6 +16,11 @@ export default () => ({
     expiresIn: process.env.JWT_EXPIRES_IN ?? '15m',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   },
+  auth: {
+    emailVerificationEnabled:
+      (process.env.EMAIL_VERIFICATION_ENABLED ?? '').toLowerCase() === 'true' ||
+      process.env.EMAIL_VERIFICATION_ENABLED === '1',
+  },
   elastic: {
     node: process.env.ELASTICSEARCH_NODE ?? 'http://localhost:9200',
     apiKey: process.env.ELASTICSEARCH_API_KEY,

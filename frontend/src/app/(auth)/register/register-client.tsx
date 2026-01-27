@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 
 import { api, ApiError } from "@/lib/api"
+import { setTokens } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -28,6 +29,11 @@ export default function RegisterClient() {
     setLoading(true)
     try {
       const res = await api.auth.register({ email, name, password })
+      if ("accessToken" in res && "refreshToken" in res) {
+        setTokens(res)
+        router.replace(next)
+        return
+      }
       setSent(true)
       setSentMessage(res.message || "인증 메일을 발송했습니다. 메일함을 확인해 주세요.")
     } catch (err) {

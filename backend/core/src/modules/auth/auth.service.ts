@@ -38,6 +38,12 @@ export class AuthService {
       avatarUrl: dto.avatarUrl,
     });
 
+    const enabled = Boolean(this.configService.get<boolean>('auth.emailVerificationEnabled'));
+    if (!enabled) {
+      await this.usersService.update(user.id, { emailVerifiedAt: new Date() } as any);
+      return this.issueTokens(user.id, user.email, user.role);
+    }
+
     await this.sendVerification(user.id, user.email, user.name);
     return { success: true, message: '인증 메일을 발송했습니다. 메일함을 확인해 주세요.' };
   }
@@ -53,7 +59,8 @@ export class AuthService {
       throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
 
-    if (!user.emailVerifiedAt) {
+    const enabled = Boolean(this.configService.get<boolean>('auth.emailVerificationEnabled'));
+    if (enabled && !user.emailVerifiedAt) {
       throw new UnauthorizedException('이메일 인증이 필요합니다.');
     }
 
@@ -89,6 +96,8 @@ export class AuthService {
   }
 
   async resendVerification(email: string) {
+    const enabled = Boolean(this.configService.get<boolean>('auth.emailVerificationEnabled'));
+    if (!enabled) return { success: true };
     if (!email) {
       return { success: true };
     }
