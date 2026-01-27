@@ -169,12 +169,53 @@ export const api = {
   },
   characters: {
     list: (projectId: string) => apiFetch<any[]>(`/characters?projectId=${encodeURIComponent(projectId)}`),
+    create: (dto: { projectId: string; name: string; role?: string; backstory?: string; speechSample?: string; imageUrl?: string }) =>
+      apiFetch<any>("/characters", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/characters/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/characters/${id}`, { method: "DELETE" }),
   },
   worldSettings: {
     list: (projectId: string) => apiFetch<any[]>(`/world-settings?projectId=${encodeURIComponent(projectId)}`),
+    create: (dto: { projectId: string; category: string; title: string; content?: string; metadata?: any }) =>
+      apiFetch<any>("/world-settings", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/world-settings/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/world-settings/${id}`, { method: "DELETE" }),
   },
   stats: {
-    project: (projectId: string) => apiFetch<any>(`/stats/projects/${projectId}`),
+    project: (projectId: string) =>
+      apiFetch<{
+        projectId: string;
+        documents: number;
+        characters: number;
+        worldSettings: number;
+        plots: number;
+        wordCount: number;
+      }>(`/stats/projects/${projectId}`),
+  },
+  plots: {
+    list: (projectId: string) => apiFetch<any[]>(`/plots?projectId=${encodeURIComponent(projectId)}`),
+    create: (dto: any) => apiFetch<any>("/plots", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/plots/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<any>(`/plots/${id}`, { method: "DELETE" }),
+  },
+  research: {
+    list: (projectId: string) => apiFetch<any[]>(`/research-items?projectId=${encodeURIComponent(projectId)}`),
+    create: (dto: any) => apiFetch<any>("/research-items", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/research-items/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<any>(`/research-items/${id}`, { method: "DELETE" }),
+  },
+  publishing: {
+    list: (projectId: string) => apiFetch<any[]>(`/publishing-exports?projectId=${encodeURIComponent(projectId)}`),
+    create: (dto: { projectId: string; format: string; includedDocuments?: string[] }) => apiFetch<any>("/publishing-exports", { method: "POST", body: dto }),
+    download: (id: string) => apiFetch<string>(`/publishing-exports/${id}/download`),
+  },
+  backups: {
+    export: (projectId: string) => apiFetch<string>(`/backups/projects/${projectId}/export`),
+    import: (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return apiUpload<{ success: true }>("/backups/import", fd);
+    }
   },
   ai: {
     quota: () => apiFetch<{ limit: number | null; used: number; remaining: number | null }>("/ai/quota"),

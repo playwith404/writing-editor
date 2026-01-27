@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Users, Globe, Bot, BarChart2 } from "lucide-react"
 import { useEditorStore } from "@/stores/editor-store"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +23,7 @@ export function RightPanel({
     const { activeRightPanelTab, setRightPanelTab } = useEditorStore()
 
     return (
-        <div className="flex flex-col h-full bg-background border-l">
+        <div className="flex flex-col h-full min-h-0 bg-background border-l">
             <div className="p-2 border-b">
                 <Tabs value={activeRightPanelTab} onValueChange={(v) => setRightPanelTab(v as any)} className="w-full">
                     <TabsList className="w-full grid grid-cols-4">
@@ -48,26 +48,85 @@ export function RightPanel({
 }
 
 function CharacterPanel({ projectId }: { projectId: string }) {
+    const queryClient = useQueryClient()
+
     const charactersQuery = useQuery({
         queryKey: ["characters", projectId],
         queryFn: () => api.characters.list(projectId),
     })
 
     const characters = useMemo(() => (charactersQuery.data ?? []) as any[], [charactersQuery.data])
+    const [createOpen, setCreateOpen] = useState(false)
+    const [name, setName] = useState("")
+    const [role, setRole] = useState("")
+    const [createError, setCreateError] = useState<string | null>(null)
+
+    const createCharacter = useMutation({
+        mutationFn: async () => {
+            setCreateError(null)
+            return api.characters.create({ projectId, name: name.trim(), role: role.trim() || undefined })
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["characters", projectId] })
+            setName("")
+            setRole("")
+            setCreateOpen(false)
+        },
+        onError: (err) => {
+            if (err instanceof ApiError) setCreateError(err.message)
+            else setCreateError("인물 등록에 실패했습니다.")
+        },
+    })
+
+    const deleteCharacter = useMutation({
+        mutationFn: async (id: string) => api.characters.delete(id),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["characters", projectId] })
+        },
+    })
 
     return (
         <div className="space-y-4">
             <div className="space-y-2">
                 <h3 className="font-semibold text-sm">인물</h3>
+                <div className="flex items-center gap-2">
+                    <Button size="sm" variant={createOpen ? "secondary" : "outline"} onClick={() => (setCreateError(null), setCreateOpen((p) => !p))}>
+                        {createOpen ? "닫기" : "인물 추가"}
+                    </Button>
+                </div>
+
+                {createOpen && (
+                    <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
+                        <div className="grid gap-2">
+                            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="이름" />
+                            <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="역할(선택)" />
+                        </div>
+                        {createError && <div className="text-sm text-red-600">{createError}</div>}
+                        <Button size="sm" disabled={!name.trim() || createCharacter.isPending} onClick={() => createCharacter.mutate()}>
+                            {createCharacter.isPending ? "추가 중..." : "등록"}
+                        </Button>
+                    </div>
+                )}
+
                 {charactersQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
                 {charactersQuery.isError && <div className="text-sm text-red-600">인물 목록을 불러오지 못했습니다.</div>}
                 {!charactersQuery.isLoading && characters.length === 0 && (
                     <div className="text-sm text-muted-foreground">아직 등록된 인물이 없습니다.</div>
                 )}
                 {characters.map((c) => (
-                    <div key={c.id} className="p-3 bg-muted/50 rounded-lg text-sm border">
-                        <div className="font-medium">{c.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">{c.role || "역할 미지정"}</div>
+                    <div key={c.id} className="p-3 bg-muted/50 rounded-lg text-sm border flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <div className="font-medium truncate">{c.name}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{c.role || "역할 미지정"}</div>
+                        </div>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={deleteCharacter.isPending}
+                            onClick={() => deleteCharacter.mutate(String(c.id))}
+                        >
+                            삭제
+                        </Button>
                     </div>
                 ))}
             </div>
@@ -76,25 +135,97 @@ function CharacterPanel({ projectId }: { projectId: string }) {
 }
 
 function WorldPanel({ projectId }: { projectId: string }) {
+    const queryClient = useQueryClient()
+
     const worldQuery = useQuery({
         queryKey: ["world-settings", projectId],
         queryFn: () => api.worldSettings.list(projectId),
     })
 
     const items = useMemo(() => (worldQuery.data ?? []) as any[], [worldQuery.data])
+    const [createOpen, setCreateOpen] = useState(false)
+    const [category, setCategory] = useState("")
+    const [title, setTitle] = useState("")
+    const [content, setContent] = useState("")
+    const [createError, setCreateError] = useState<string | null>(null)
+
+    const createWorld = useMutation({
+        mutationFn: async () => {
+            setCreateError(null)
+            return api.worldSettings.create({
+                projectId,
+                category: category.trim() || "기타",
+                title: title.trim(),
+                content: content.trim() || undefined,
+            })
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["world-settings", projectId] })
+            setCategory("")
+            setTitle("")
+            setContent("")
+            setCreateOpen(false)
+        },
+        onError: (err) => {
+            if (err instanceof ApiError) setCreateError(err.message)
+            else setCreateError("세계관 등록에 실패했습니다.")
+        },
+    })
+
+    const deleteWorld = useMutation({
+        mutationFn: async (id: string) => api.worldSettings.delete(id),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["world-settings", projectId] })
+        },
+    })
 
     return (
         <div className="space-y-4">
             <h3 className="font-semibold text-sm">세계관</h3>
+            <div className="flex items-center gap-2">
+                <Button size="sm" variant={createOpen ? "secondary" : "outline"} onClick={() => (setCreateError(null), setCreateOpen((p) => !p))}>
+                    {createOpen ? "닫기" : "설정 추가"}
+                </Button>
+            </div>
+
+            {createOpen && (
+                <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
+                    <div className="grid gap-2">
+                        <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="카테고리(예: 지리/역사/마법)" />
+                        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            placeholder="내용(선택)"
+                            className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                    </div>
+                    {createError && <div className="text-sm text-red-600">{createError}</div>}
+                    <Button size="sm" disabled={!title.trim() || createWorld.isPending} onClick={() => createWorld.mutate()}>
+                        {createWorld.isPending ? "추가 중..." : "등록"}
+                    </Button>
+                </div>
+            )}
+
             {worldQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
             {worldQuery.isError && <div className="text-sm text-red-600">세계관 정보를 불러오지 못했습니다.</div>}
             {!worldQuery.isLoading && items.length === 0 && (
                 <div className="text-sm text-muted-foreground">아직 등록된 세계관 항목이 없습니다.</div>
             )}
             {items.map((w) => (
-                <div key={w.id} className="p-3 bg-muted/50 rounded-lg text-sm border">
-                    <div className="font-medium">{w.title}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{w.category}</div>
+                <div key={w.id} className="p-3 bg-muted/50 rounded-lg text-sm border flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="font-medium truncate">{w.title}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{w.category}</div>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={deleteWorld.isPending}
+                        onClick={() => deleteWorld.mutate(String(w.id))}
+                    >
+                        삭제
+                    </Button>
                 </div>
             ))}
         </div>
