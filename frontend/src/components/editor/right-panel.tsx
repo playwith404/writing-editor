@@ -36,7 +36,7 @@ export function RightPanel({
             </div>
 
             <ScrollArea className="flex-1">
-                <div className="p-4">
+                <div className="p-4 pb-24">
                     {activeRightPanelTab === 'character' && <CharacterPanel projectId={projectId} />}
                     {activeRightPanelTab === 'world' && <WorldPanel projectId={projectId} />}
                     {activeRightPanelTab === 'ai' && <AIPanel projectId={projectId} documentId={documentId} onInsertText={onInsertText} />}

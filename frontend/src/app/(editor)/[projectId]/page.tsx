@@ -188,7 +188,7 @@ export default function EditorPage() {
     }, [dirty, content, selectedDocumentId, saveMutation])
 
     return (
-        <div className="flex flex-col h-screen bg-background overflow-hidden">
+        <div className="flex flex-col h-screen h-[100dvh] bg-background overflow-hidden">
             {/* 헤더 */}
             <header className={cn("flex items-center justify-between px-4 py-2 border-b transition-all duration-300", focusMode && "h-0 opacity-0 overflow-hidden border-0 py-0")}>
                 <div className="flex items-center gap-2">
