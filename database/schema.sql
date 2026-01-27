@@ -411,6 +411,22 @@ CREATE TABLE IF NOT EXISTS point_transactions (
 
 CREATE INDEX IF NOT EXISTS idx_point_tx_user ON point_transactions(user_id, created_at DESC);
 
+-- Media assets
+CREATE TABLE IF NOT EXISTS media_assets (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id      UUID REFERENCES projects(id) ON DELETE SET NULL,
+    original_name   TEXT,
+    mime_type       TEXT NOT NULL,
+    size            INTEGER NOT NULL,
+    storage_path    TEXT NOT NULL,
+    url             TEXT NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_assets_user ON media_assets(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_media_assets_project ON media_assets(project_id, created_at DESC);
+
 -- Publishing exports
 CREATE TABLE IF NOT EXISTS publishing_exports (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

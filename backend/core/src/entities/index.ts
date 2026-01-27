@@ -24,6 +24,7 @@ export { BetaReaderProfile } from './beta-reader-profile.entity';
 export { BetaSessionInvite } from './beta-session-invite.entity';
 export { BetaSessionParticipant } from './beta-session-participant.entity';
 export { PointTransaction } from './point-transaction.entity';
+export { MediaAsset } from './media-asset.entity';
 export { PublishingExport } from './publishing-export.entity';
 export { Translation } from './translation.entity';
 export { AudioAsset } from './audio-asset.entity';
@@ -58,6 +59,7 @@ import { BetaReaderProfile } from './beta-reader-profile.entity';
 import { BetaSessionInvite } from './beta-session-invite.entity';
 import { BetaSessionParticipant } from './beta-session-participant.entity';
 import { PointTransaction } from './point-transaction.entity';
+import { MediaAsset } from './media-asset.entity';
 import { PublishingExport } from './publishing-export.entity';
 import { Translation } from './translation.entity';
 import { AudioAsset } from './audio-asset.entity';
@@ -93,6 +95,7 @@ export const ENTITIES = [
   BetaSessionInvite,
   BetaSessionParticipant,
   PointTransaction,
+  MediaAsset,
   PublishingExport,
   Translation,
   AudioAsset,

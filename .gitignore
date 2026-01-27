@@ -9,3 +9,5 @@ backend/*/coverage
 __pycache__
 .pytest_cache
 *.pyc
+uploads/
+deploy/uploads/

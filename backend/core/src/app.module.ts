@@ -35,6 +35,8 @@ import { StatsModule } from './modules/stats/stats.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { BetaReadersModule } from './modules/beta-readers/beta-readers.module';
 import { PointsModule } from './modules/points/points.module';
+import { MediaModule } from './modules/media/media.module';
+import { BackupsModule } from './modules/backups/backups.module';
 
 @Module({
   imports: [
@@ -85,6 +87,8 @@ import { PointsModule } from './modules/points/points.module';
     StatsModule,
     BillingModule,
     PointsModule,
+    MediaModule,
+    BackupsModule,
   ],
   controllers: [HealthController],
   providers: [HealthService],
