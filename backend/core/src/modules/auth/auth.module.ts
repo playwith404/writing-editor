@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
-import { EmailVerificationToken, RefreshToken } from '../../entities';
+import { EmailChangeToken, EmailVerificationToken, PasswordResetToken, RefreshToken } from '../../entities';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
@@ -15,7 +15,7 @@ import { MailModule } from '../mail/mail.module';
     UsersModule,
     MailModule,
     PassportModule,
-    TypeOrmModule.forFeature([RefreshToken, EmailVerificationToken]),
+    TypeOrmModule.forFeature([RefreshToken, EmailVerificationToken, PasswordResetToken, EmailChangeToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

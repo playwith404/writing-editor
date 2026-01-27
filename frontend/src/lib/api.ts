@@ -92,6 +92,17 @@ export const api = {
       apiFetch<{ accessToken: string; refreshToken: string }>("/auth/verify-email", { method: "POST", body: dto }),
     resendVerification: (dto: { email: string }) =>
       apiFetch<{ success: true; message?: string }>("/auth/resend-verification", { method: "POST", body: dto }),
+    me: () => apiFetch<any>("/auth/me"),
+    requestPasswordReset: (dto: { email: string }) =>
+      apiFetch<{ success: true; message?: string }>("/auth/request-password-reset", { method: "POST", body: dto }),
+    resetPassword: (dto: { token: string; newPassword: string }) =>
+      apiFetch<{ success: true }>("/auth/reset-password", { method: "POST", body: dto }),
+    changePassword: (dto: { currentPassword: string; newPassword: string }) =>
+      apiFetch<{ success: true }>("/auth/change-password", { method: "POST", body: dto }),
+    requestEmailChange: (dto: { newEmail: string }) =>
+      apiFetch<{ success: true; message?: string }>("/auth/request-email-change", { method: "POST", body: dto }),
+    confirmEmailChange: (dto: { token: string }) =>
+      apiFetch<{ accessToken: string; refreshToken: string }>("/auth/confirm-email-change", { method: "POST", body: dto }),
     logout: () => apiFetch<{ success: true }>("/auth/logout", { method: "POST" }),
   },
   projects: {

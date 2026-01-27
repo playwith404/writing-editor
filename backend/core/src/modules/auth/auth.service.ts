@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,7 +8,7 @@ import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { EmailVerificationToken, RefreshToken } from '../../entities';
+import { EmailChangeToken, EmailVerificationToken, PasswordResetToken, RefreshToken } from '../../entities';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
@@ -22,6 +22,10 @@ export class AuthService {
     private readonly refreshRepo: Repository<RefreshToken>,
     @InjectRepository(EmailVerificationToken)
     private readonly verifyRepo: Repository<EmailVerificationToken>,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetRepo: Repository<PasswordResetToken>,
+    @InjectRepository(EmailChangeToken)
+    private readonly emailChangeRepo: Repository<EmailChangeToken>,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -234,5 +238,173 @@ export class AuthService {
       default:
         return amount;
     }
+  }
+
+  me(userId: string | undefined) {
+    if (!userId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+    return this.usersService.findById(userId);
+  }
+
+  async requestPasswordReset(email: string) {
+    const message = '비밀번호 재설정 링크를 발송했습니다. 메일함을 확인해 주세요.';
+    if (!email) return { success: true, message };
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user) return { success: true, message };
+
+    await this.passwordResetRepo.update({ userId: user.id, usedAt: IsNull() } as any, { usedAt: new Date() } as any);
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.passwordResetRepo.save(
+      this.passwordResetRepo.create({
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      } as any),
+    );
+
+    await this.mailService.sendPasswordReset(user.email, rawToken, user.name);
+    return { success: true, message };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    if (!token || !newPassword) {
+      throw new BadRequestException('token과 newPassword가 필요합니다.');
+    }
+
+    const tokenHash = this.hashToken(token);
+    const record = await this.passwordResetRepo.findOne({
+      where: {
+        tokenHash,
+        usedAt: IsNull(),
+        expiresAt: MoreThan(new Date()),
+      } as any,
+    });
+
+    if (!record) {
+      throw new UnauthorizedException('유효하지 않거나 만료된 토큰입니다.');
+    }
+
+    const user = await this.usersService.findByIdWithPassword(record.userId);
+    if (!user) {
+      throw new UnauthorizedException('유저 정보를 찾을 수 없습니다.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.usersService.update(user.id, { passwordHash } as any);
+
+    record.usedAt = new Date();
+    await this.passwordResetRepo.save(record);
+
+    await this.refreshRepo.update({ userId: user.id, revokedAt: IsNull() } as any, { revokedAt: new Date() } as any);
+    return { success: true };
+  }
+
+  async changePassword(userId: string | undefined, currentPassword: string, newPassword: string) {
+    if (!userId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('currentPassword와 newPassword가 필요합니다.');
+    }
+
+    const user = await this.usersService.findByIdWithPassword(userId);
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('비밀번호를 변경할 수 없습니다.');
+    }
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) {
+      throw new UnauthorizedException('현재 비밀번호가 올바르지 않습니다.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.usersService.update(user.id, { passwordHash } as any);
+    await this.refreshRepo.update({ userId: user.id, revokedAt: IsNull() } as any, { revokedAt: new Date() } as any);
+
+    return { success: true };
+  }
+
+  async requestEmailChange(userId: string | undefined, newEmail: string) {
+    if (!userId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+    if (!newEmail) {
+      throw new BadRequestException('newEmail이 필요합니다.');
+    }
+
+    const user = await this.usersService.findByIdWithPassword(userId);
+    if (!user) {
+      throw new UnauthorizedException('유저 정보를 찾을 수 없습니다.');
+    }
+
+    if (user.email === newEmail) {
+      return { success: true, message: '이메일 변경 확인 메일을 발송했습니다. 메일함을 확인해 주세요.' };
+    }
+
+    const exists = await this.usersService.findByEmail(newEmail);
+    if (exists && exists.id !== user.id) {
+      throw new ConflictException('이미 사용 중인 이메일입니다.');
+    }
+
+    await this.emailChangeRepo.update({ userId: user.id, usedAt: IsNull() } as any, { usedAt: new Date() } as any);
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.emailChangeRepo.save(
+      this.emailChangeRepo.create({
+        userId: user.id,
+        tokenHash,
+        newEmail,
+        expiresAt,
+      } as any),
+    );
+
+    await this.mailService.sendEmailChange(newEmail, rawToken, user.name);
+    return { success: true, message: '이메일 변경 확인 메일을 발송했습니다. 메일함을 확인해 주세요.' };
+  }
+
+  async confirmEmailChange(token: string) {
+    if (!token) {
+      throw new UnauthorizedException('유효하지 않은 토큰입니다.');
+    }
+
+    const tokenHash = this.hashToken(token);
+    const record = await this.emailChangeRepo.findOne({
+      where: {
+        tokenHash,
+        usedAt: IsNull(),
+        expiresAt: MoreThan(new Date()),
+      } as any,
+    });
+
+    if (!record) {
+      throw new UnauthorizedException('유효하지 않거나 만료된 토큰입니다.');
+    }
+
+    const user = await this.usersService.findByIdWithPassword(record.userId);
+    if (!user) {
+      throw new UnauthorizedException('유저 정보를 찾을 수 없습니다.');
+    }
+
+    const exists = await this.usersService.findByEmail(record.newEmail);
+    if (exists && exists.id !== user.id) {
+      throw new ConflictException('이미 사용 중인 이메일입니다.');
+    }
+
+    await this.usersService.update(user.id, { email: record.newEmail, emailVerifiedAt: new Date() } as any);
+
+    record.usedAt = new Date();
+    await this.emailChangeRepo.save(record);
+
+    await this.refreshRepo.update({ userId: user.id, revokedAt: IsNull() } as any, { revokedAt: new Date() } as any);
+    return this.issueTokens(user.id, record.newEmail, user.role);
   }
 }

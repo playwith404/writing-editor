@@ -88,6 +88,12 @@ export default function LoginClient() {
             {loading ? "로그인 중..." : "로그인"}
           </Button>
 
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-sm text-muted-foreground hover:underline">
+              비밀번호를 잊으셨나요?
+            </Link>
+          </div>
+
           <div className="text-sm text-muted-foreground">
             계정이 없나요?{" "}
             <Link href={`/register?next=${encodeURIComponent(next)}`} className="text-primary hover:underline">

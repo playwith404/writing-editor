@@ -52,6 +52,33 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
 CREATE INDEX IF NOT EXISTS idx_email_verify_user ON email_verification_tokens(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_email_verify_token ON email_verification_tokens(token_hash);
 
+-- Password reset tokens
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash      VARCHAR(255) NOT NULL,
+    expires_at      TIMESTAMPTZ NOT NULL,
+    used_at         TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token_hash);
+
+-- Email change tokens
+CREATE TABLE IF NOT EXISTS email_change_tokens (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash      VARCHAR(255) NOT NULL,
+    new_email       VARCHAR(255) NOT NULL,
+    expires_at      TIMESTAMPTZ NOT NULL,
+    used_at         TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_change_user ON email_change_tokens(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_email_change_token ON email_change_tokens(token_hash);
+
 -- Projects
 CREATE TABLE IF NOT EXISTS projects (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

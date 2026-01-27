@@ -1,6 +1,8 @@
 export { User } from './user.entity';
 export { RefreshToken } from './refresh-token.entity';
 export { EmailVerificationToken } from './email-verification-token.entity';
+export { PasswordResetToken } from './password-reset-token.entity';
+export { EmailChangeToken } from './email-change-token.entity';
 export { Project } from './project.entity';
 export { ProjectMember } from './project-member.entity';
 export { Document } from './document.entity';
@@ -27,6 +29,8 @@ export { DocumentComment } from './document-comment.entity';
 import { User } from './user.entity';
 import { RefreshToken } from './refresh-token.entity';
 import { EmailVerificationToken } from './email-verification-token.entity';
+import { PasswordResetToken } from './password-reset-token.entity';
+import { EmailChangeToken } from './email-change-token.entity';
 import { Project } from './project.entity';
 import { ProjectMember } from './project-member.entity';
 import { Document } from './document.entity';
@@ -54,6 +58,8 @@ export const ENTITIES = [
   User,
   RefreshToken,
   EmailVerificationToken,
+  PasswordResetToken,
+  EmailChangeToken,
   Project,
   ProjectMember,
   Document,

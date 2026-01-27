@@ -49,6 +49,10 @@ export class UsersService {
     });
   }
 
+  async findByIdWithPassword(id: string): Promise<User | null> {
+    return this.usersRepo.findOne({ where: { id } });
+  }
+
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepo.findOne({ where: { email } });
   }
