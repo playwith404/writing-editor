@@ -43,6 +43,30 @@ if [ "$APPLY_SCHEMA" = "1" ] && [ -f "$SCHEMA_FILE" ]; then
 
   "${PSQL_CMD[@]}" -d "$DB_NAME" -f "$schema_path"
 
+  # When schema is applied via sudo/postgres, created tables can be owned by postgres.
+  # Ensure the application role can access (and owns) all objects in public schema.
+  "${PSQL_CMD[@]}" -d "$DB_NAME" -v db_user="$DB_USER" <<'SQL'
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN (SELECT schemaname, tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+    EXECUTE format('ALTER TABLE %I.%I OWNER TO %I', r.schemaname, r.tablename, :'db_user');
+  END LOOP;
+
+  FOR r IN (SELECT sequence_schema, sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public') LOOP
+    EXECUTE format('ALTER SEQUENCE %I.%I OWNER TO %I', r.sequence_schema, r.sequence_name, :'db_user');
+  END LOOP;
+END$$;
+
+ALTER SCHEMA public OWNER TO :"db_user";
+GRANT USAGE ON SCHEMA public TO :"db_user";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"db_user";
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO :"db_user";
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"db_user";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO :"db_user";
+SQL
+
   if [ -n "$tmp_schema" ] && [ -f "$tmp_schema" ]; then
     rm -f "$tmp_schema"
   fi
