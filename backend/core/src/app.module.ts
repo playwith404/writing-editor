@@ -32,6 +32,7 @@ import { ResearchItemsModule } from './modules/research-items/research-items.mod
 import { DocumentCommentsModule } from './modules/document-comments/document-comments.module';
 import { SearchModule } from './modules/search/search.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { StatsModule } from './modules/stats/stats.module';
     DocumentCommentsModule,
     SearchModule,
     StatsModule,
+    BillingModule,
   ],
   controllers: [HealthController],
   providers: [HealthService],

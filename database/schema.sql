@@ -39,6 +39,44 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 
+-- Subscriptions (Billing)
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                 UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan                    VARCHAR(20) NOT NULL,
+    status                  VARCHAR(20) DEFAULT 'pending',
+    provider                VARCHAR(20) DEFAULT 'manual',
+    provider_customer_id    TEXT,
+    provider_subscription_id TEXT,
+    current_period_start    TIMESTAMPTZ,
+    current_period_end      TIMESTAMPTZ,
+    cancel_at_period_end    BOOLEAN DEFAULT false,
+    canceled_at             TIMESTAMPTZ,
+    metadata                JSONB DEFAULT '{}',
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+
+-- Payments (Billing)
+CREATE TABLE IF NOT EXISTS payments (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+    provider        VARCHAR(20) DEFAULT 'manual',
+    amount          INTEGER DEFAULT 0,
+    currency        VARCHAR(10) DEFAULT 'KRW',
+    status          VARCHAR(20) DEFAULT 'pending',
+    metadata        JSONB DEFAULT '{}',
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    completed_at    TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_subscription ON payments(subscription_id);
+
 -- Email verification tokens
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -3,6 +3,8 @@ export { RefreshToken } from './refresh-token.entity';
 export { EmailVerificationToken } from './email-verification-token.entity';
 export { PasswordResetToken } from './password-reset-token.entity';
 export { EmailChangeToken } from './email-change-token.entity';
+export { Subscription } from './subscription.entity';
+export { Payment } from './payment.entity';
 export { Project } from './project.entity';
 export { ProjectMember } from './project-member.entity';
 export { Document } from './document.entity';
@@ -31,6 +33,8 @@ import { RefreshToken } from './refresh-token.entity';
 import { EmailVerificationToken } from './email-verification-token.entity';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { EmailChangeToken } from './email-change-token.entity';
+import { Subscription } from './subscription.entity';
+import { Payment } from './payment.entity';
 import { Project } from './project.entity';
 import { ProjectMember } from './project-member.entity';
 import { Document } from './document.entity';
@@ -60,6 +64,8 @@ export const ENTITIES = [
   EmailVerificationToken,
   PasswordResetToken,
   EmailChangeToken,
+  Subscription,
+  Payment,
   Project,
   ProjectMember,
   Document,
