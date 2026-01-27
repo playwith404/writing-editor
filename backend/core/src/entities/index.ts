@@ -20,6 +20,10 @@ export { AiUsage } from './ai-usage.entity';
 export { AiRequest } from './ai-request.entity';
 export { BetaSession } from './beta-session.entity';
 export { BetaFeedback } from './beta-feedback.entity';
+export { BetaReaderProfile } from './beta-reader-profile.entity';
+export { BetaSessionInvite } from './beta-session-invite.entity';
+export { BetaSessionParticipant } from './beta-session-participant.entity';
+export { PointTransaction } from './point-transaction.entity';
 export { PublishingExport } from './publishing-export.entity';
 export { Translation } from './translation.entity';
 export { AudioAsset } from './audio-asset.entity';
@@ -50,6 +54,10 @@ import { AiUsage } from './ai-usage.entity';
 import { AiRequest } from './ai-request.entity';
 import { BetaSession } from './beta-session.entity';
 import { BetaFeedback } from './beta-feedback.entity';
+import { BetaReaderProfile } from './beta-reader-profile.entity';
+import { BetaSessionInvite } from './beta-session-invite.entity';
+import { BetaSessionParticipant } from './beta-session-participant.entity';
+import { PointTransaction } from './point-transaction.entity';
 import { PublishingExport } from './publishing-export.entity';
 import { Translation } from './translation.entity';
 import { AudioAsset } from './audio-asset.entity';
@@ -81,6 +89,10 @@ export const ENTITIES = [
   AiRequest,
   BetaSession,
   BetaFeedback,
+  BetaReaderProfile,
+  BetaSessionInvite,
+  BetaSessionParticipant,
+  PointTransaction,
   PublishingExport,
   Translation,
   AudioAsset,

@@ -14,6 +14,18 @@ export class BetaFeedback {
   @Column({ nullable: true })
   rating?: number;
 
+  @Column({ name: 'immersion_rating', nullable: true })
+  immersionRating?: number;
+
+  @Column({ name: 'pacing_rating', nullable: true })
+  pacingRating?: number;
+
+  @Column({ name: 'character_rating', nullable: true })
+  characterRating?: number;
+
+  @Column({ name: 'is_anonymous', default: false })
+  isAnonymous: boolean;
+
   @Column({ type: 'text', nullable: true })
   comment?: string;
 

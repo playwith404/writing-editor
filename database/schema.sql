@@ -337,11 +337,79 @@ CREATE TABLE IF NOT EXISTS beta_feedback (
     session_id      UUID NOT NULL REFERENCES beta_sessions(id) ON DELETE CASCADE,
     user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
     rating          INTEGER,
+    immersion_rating INTEGER,
+    pacing_rating   INTEGER,
+    character_rating INTEGER,
+    is_anonymous    BOOLEAN DEFAULT false,
     comment         TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE IF EXISTS beta_feedback
+    ADD COLUMN IF NOT EXISTS immersion_rating INTEGER;
+ALTER TABLE IF EXISTS beta_feedback
+    ADD COLUMN IF NOT EXISTS pacing_rating INTEGER;
+ALTER TABLE IF EXISTS beta_feedback
+    ADD COLUMN IF NOT EXISTS character_rating INTEGER;
+ALTER TABLE IF EXISTS beta_feedback
+    ADD COLUMN IF NOT EXISTS is_anonymous BOOLEAN DEFAULT false;
+
 CREATE INDEX IF NOT EXISTS idx_beta_feedback_session ON beta_feedback(session_id);
+
+CREATE TABLE IF NOT EXISTS beta_reader_profiles (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    preferred_genres TEXT[] DEFAULT '{}',
+    reading_volume  INTEGER DEFAULT 0,
+    feedback_style  TEXT,
+    bio             TEXT,
+    is_active       BOOLEAN DEFAULT true,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_beta_reader_active ON beta_reader_profiles(is_active);
+CREATE INDEX IF NOT EXISTS idx_beta_reader_genres ON beta_reader_profiles USING GIN(preferred_genres);
+
+CREATE TABLE IF NOT EXISTS beta_session_invites (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id      UUID NOT NULL REFERENCES beta_sessions(id) ON DELETE CASCADE,
+    token_hash      VARCHAR(255) NOT NULL,
+    expires_at      TIMESTAMPTZ,
+    max_uses        INTEGER,
+    uses            INTEGER DEFAULT 0,
+    created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_beta_invites_session ON beta_session_invites(session_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_beta_invites_token ON beta_session_invites(token_hash);
+
+CREATE TABLE IF NOT EXISTS beta_session_participants (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id      UUID NOT NULL REFERENCES beta_sessions(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status          VARCHAR(20) DEFAULT 'joined',
+    display_name    TEXT,
+    joined_at       TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (session_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_beta_participants_session ON beta_session_participants(session_id);
+CREATE INDEX IF NOT EXISTS idx_beta_participants_user ON beta_session_participants(user_id);
+
+CREATE TABLE IF NOT EXISTS point_transactions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount          INTEGER NOT NULL,
+    reason          VARCHAR(50) NOT NULL,
+    ref_type        VARCHAR(50),
+    ref_id          UUID,
+    metadata        JSONB DEFAULT '{}',
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_point_tx_user ON point_transactions(user_id, created_at DESC);
 
 -- Publishing exports
 CREATE TABLE IF NOT EXISTS publishing_exports (

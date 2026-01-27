@@ -33,6 +33,8 @@ import { DocumentCommentsModule } from './modules/document-comments/document-com
 import { SearchModule } from './modules/search/search.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { BetaReadersModule } from './modules/beta-readers/beta-readers.module';
+import { PointsModule } from './modules/points/points.module';
 
 @Module({
   imports: [
@@ -71,6 +73,7 @@ import { BillingModule } from './modules/billing/billing.module';
     AiRequestsModule,
     BetaSessionsModule,
     BetaFeedbackModule,
+    BetaReadersModule,
     PublishingExportsModule,
     TranslationsModule,
     AudioAssetsModule,
@@ -81,6 +84,7 @@ import { BillingModule } from './modules/billing/billing.module';
     SearchModule,
     StatsModule,
     BillingModule,
+    PointsModule,
   ],
   controllers: [HealthController],
   providers: [HealthService],

@@ -105,6 +105,11 @@ export const api = {
       apiFetch<{ accessToken: string; refreshToken: string }>("/auth/confirm-email-change", { method: "POST", body: dto }),
     logout: () => apiFetch<{ success: true }>("/auth/logout", { method: "POST" }),
   },
+  billing: {
+    plans: () => apiFetch<any[]>("/billing/plans"),
+    subscription: () => apiFetch<any>("/billing/subscription"),
+    subscribe: (dto: { plan: "free" | "pro" | "master" }) => apiFetch<any>("/billing/subscribe", { method: "POST", body: dto }),
+  },
   projects: {
     list: () => apiFetch<any[]>("/projects"),
     get: (id: string) => apiFetch<any>(`/projects/${id}`),
@@ -135,5 +140,30 @@ export const api = {
     storyboard: (dto: any) => apiFetch<any>("/storyboards/generate", { method: "POST", body: dto }),
     predict: (dto: any) => apiFetch<any>("/reader-predictions/generate", { method: "POST", body: dto }),
     tts: (dto: any) => apiFetch<any>("/audio-assets/generate", { method: "POST", body: dto }),
+  },
+  betaSessions: {
+    list: (projectId?: string) =>
+      apiFetch<any[]>(`/beta-sessions${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`),
+    get: (id: string) => apiFetch<any>(`/beta-sessions/${id}`),
+    create: (dto: { projectId: string; documentId?: string; title: string; description?: string }) =>
+      apiFetch<any>("/beta-sessions", { method: "POST", body: dto }),
+    inviteInfo: (token: string) => apiFetch<any>(`/beta-sessions/invite?token=${encodeURIComponent(token)}`),
+    join: (dto: { token: string }) => apiFetch<any>("/beta-sessions/join", { method: "POST", body: dto }),
+    document: (sessionId: string) => apiFetch<any>(`/beta-sessions/${sessionId}/document`),
+    participants: (sessionId: string) => apiFetch<any[]>(`/beta-sessions/${sessionId}/participants`),
+  },
+  betaFeedback: {
+    list: (sessionId: string) => apiFetch<any[]>(`/beta-feedback?sessionId=${encodeURIComponent(sessionId)}`),
+    create: (dto: any) => apiFetch<any>("/beta-feedback", { method: "POST", body: dto }),
+    remove: (id: string) => apiFetch<{ success: true }>(`/beta-feedback/${id}`, { method: "DELETE" }),
+  },
+  betaReaders: {
+    me: () => apiFetch<any>("/beta-readers/me"),
+    upsertMe: (dto: any) => apiFetch<any>("/beta-readers/me", { method: "POST", body: dto }),
+    recommendations: (projectId: string) => apiFetch<any[]>(`/beta-readers/recommendations?projectId=${encodeURIComponent(projectId)}`),
+  },
+  points: {
+    balance: () => apiFetch<{ balance: number }>("/points/balance"),
+    transactions: () => apiFetch<any[]>("/points/transactions"),
   },
 }

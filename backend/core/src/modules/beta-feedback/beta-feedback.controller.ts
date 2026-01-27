@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BetaFeedbackService } from './beta-feedback.service';
+import { CreateBetaFeedbackDto } from './dto/create-beta-feedback.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('beta-feedback')
@@ -19,7 +20,7 @@ export class BetaFeedbackController {
   }
 
   @Post()
-  create(@Req() req: any, @Body() dto: any) {
+  create(@Req() req: any, @Body() dto: CreateBetaFeedbackDto) {
     return this.betaFeedbackService.createForUser(req.user?.userId, dto);
   }
 
@@ -29,4 +30,3 @@ export class BetaFeedbackController {
     return { success: true };
   }
 }
-
