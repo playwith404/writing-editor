@@ -90,6 +90,61 @@ async function apiUpload<T>(path: string, formData: FormData, retry = true): Pro
   return data as T
 }
 
+function parseFilenameFromDisposition(value: string | null): string | null {
+  if (!value) return null
+  // content-disposition: attachment; filename="file.txt"
+  const match = /filename\\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i.exec(value)
+  const raw = match?.[1] || match?.[2]
+  if (!raw) return null
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
+
+async function apiDownload(
+  path: string,
+  init?: { method?: ApiMethod; body?: any; headers?: Record<string, string> },
+  retry = true
+): Promise<{ blob: Blob; filename: string; contentType: string | null }> {
+  const url = `${getApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`
+
+  const accessToken = getAccessToken()
+  const headers: Record<string, string> = {
+    ...(init?.headers ?? {}),
+  }
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`
+
+  const resp = await fetch(url, {
+    method: init?.method ?? "GET",
+    headers,
+    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+  })
+
+  if (resp.status === 401 && retry) {
+    const refreshed = await tryRefresh()
+    if (refreshed) {
+      return apiDownload(path, init, false)
+    }
+  }
+
+  if (!resp.ok) {
+    const text = await resp.text()
+    const data = text ? JSON.parse(text) : null
+    const message =
+      (data && typeof data === "object" && ("message" in (data as any) ? (data as any).message : (data as any).error)) ||
+      resp.statusText ||
+      "요청에 실패했습니다."
+    throw new ApiError(String(message), resp.status, data)
+  }
+
+  const blob = await resp.blob()
+  const contentType = resp.headers.get("content-type")
+  const filename = parseFilenameFromDisposition(resp.headers.get("content-disposition")) || "download"
+  return { blob, filename, contentType }
+}
+
 async function tryRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) {
@@ -191,12 +246,28 @@ export const api = {
         plots: number;
         wordCount: number;
       }>(`/stats/projects/${projectId}`),
+    dailyWords: (projectId: string, days = 30) =>
+      apiFetch<{ projectId: string; days: number; series: any[] }>(
+        `/stats/projects/${projectId}/daily?days=${encodeURIComponent(String(days))}`
+      ),
   },
   plots: {
     list: (projectId: string) => apiFetch<any[]>(`/plots?projectId=${encodeURIComponent(projectId)}`),
     create: (dto: any) => apiFetch<any>("/plots", { method: "POST", body: dto }),
     update: (id: string, dto: any) => apiFetch<any>(`/plots/${id}`, { method: "PATCH", body: dto }),
     delete: (id: string) => apiFetch<any>(`/plots/${id}`, { method: "DELETE" }),
+  },
+  plotPoints: {
+    list: (plotId: string) => apiFetch<any[]>(`/plot-points?plotId=${encodeURIComponent(plotId)}`),
+    create: (dto: any) => apiFetch<any>("/plot-points", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/plot-points/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/plot-points/${id}`, { method: "DELETE" }),
+  },
+  relationships: {
+    list: (projectId: string) => apiFetch<any[]>(`/relationships?projectId=${encodeURIComponent(projectId)}`),
+    create: (dto: any) => apiFetch<any>("/relationships", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/relationships/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/relationships/${id}`, { method: "DELETE" }),
   },
   research: {
     list: (projectId: string) => apiFetch<any[]>(`/research-items?projectId=${encodeURIComponent(projectId)}`),
@@ -206,11 +277,14 @@ export const api = {
   },
   publishing: {
     list: (projectId: string) => apiFetch<any[]>(`/publishing-exports?projectId=${encodeURIComponent(projectId)}`),
-    create: (dto: { projectId: string; format: string; includedDocuments?: string[] }) => apiFetch<any>("/publishing-exports", { method: "POST", body: dto }),
-    download: (id: string) => apiFetch<string>(`/publishing-exports/${id}/download`),
+    create: (dto: { projectId: string; exportFormat: string; documentId?: string }) =>
+      apiFetch<any>("/publishing-exports", { method: "POST", body: dto }),
+    download: (id: string) => apiDownload(`/publishing-exports/${id}/download`),
+    deliver: (id: string, dto: { type?: "email"; to: string; subject?: string; message?: string }) =>
+      apiFetch<any>(`/publishing-exports/${id}/deliver`, { method: "POST", body: dto }),
   },
   backups: {
-    export: (projectId: string) => apiFetch<string>(`/backups/projects/${projectId}/export`),
+    export: (projectId: string) => apiDownload(`/backups/projects/${projectId}/export`),
     import: (file: File) => {
       const fd = new FormData();
       fd.append('file', file);

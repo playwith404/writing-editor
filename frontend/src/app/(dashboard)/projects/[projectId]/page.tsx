@@ -1,87 +1,107 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { useParams } from "next/navigation"
-import { api } from "@/lib/api"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, Users, MapPin, Edit3 } from "lucide-react"
 import Link from "next/link"
+import { useParams } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
+import { BookOpen, PenTool } from "lucide-react"
+
+import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function ProjectDashboardPage() {
-    const params = useParams<{ projectId: string }>()
-    const projectId = params?.projectId
+  const params = useParams<{ projectId: string }>()
+  const projectId = params.projectId
 
-    const statsQuery = useQuery({
-        queryKey: ["stats", projectId],
-        queryFn: () => api.stats.project(projectId!),
-        enabled: !!projectId
-    })
+  const projectQuery = useQuery({
+    queryKey: ["projects", projectId],
+    queryFn: () => api.projects.get(projectId),
+  })
 
-    const stats = statsQuery.data
+  const statsQuery = useQuery({
+    queryKey: ["stats", "project", projectId],
+    queryFn: () => api.stats.project(projectId),
+  })
 
-    return (
-        <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">총 단어 수</CardTitle>
-                        <Edit3 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{Number(stats?.wordCount ?? 0).toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">현재 작성된 총 분량</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">캐릭터</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{Number(stats?.characters ?? 0).toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">등록된 등장인물</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">세계관</CardTitle>
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{Number(stats?.worldSettings ?? 0).toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">등록된 세계관 항목</p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
-                    <CardHeader>
-                        <CardTitle>최근 활동</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">아직 기록된 활동이 없습니다.</p>
-                    </CardContent>
-                </Card>
-                <Card className="col-span-3">
-                    <CardHeader>
-                        <CardTitle>빠른 작업</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-2">
-                        <Button asChild className="w-full justify-start" variant="outline">
-                            <Link href={`/${projectId}`}>
-                                <Edit3 className="mr-2 h-4 w-4" /> 집필실로 이동
-                            </Link>
-                        </Button>
-                        <Button asChild className="w-full justify-start" variant="outline">
-                            <Link href={`/projects/${projectId}/planning`}>
-                                <Users className="mr-2 h-4 w-4" /> 캐릭터 관리
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold tracking-tight truncate">
+            {projectQuery.data?.title ?? "프로젝트"}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            {projectQuery.data?.description ?? "프로젝트 대시보드"}
+          </p>
         </div>
-    )
+        <Button asChild>
+          <Link href={`/${projectId}`} target="_blank">
+            <PenTool className="mr-2 h-4 w-4" />
+            에디터 열기
+          </Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">문서</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {statsQuery.data?.documents ?? 0}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">인물</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {statsQuery.data?.characters ?? 0}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">세계관</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {statsQuery.data?.worldSettings ?? 0}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">총 단어</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {Number(statsQuery.data?.wordCount ?? 0).toLocaleString()}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> 다음 작업
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Link className="underline underline-offset-4" href={`/projects/${projectId}/planning`}>
+              기획실에서 설정/플롯 정리하기
+            </Link>
+            <div>
+              <Link className="underline underline-offset-4" href={`/projects/${projectId}/publishing`}>
+                퍼블리싱 내보내기/전달
+              </Link>
+            </div>
+            <div>
+              <Link className="underline underline-offset-4" href={`/projects/${projectId}/backup`}>
+                백업 내보내기/복원
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
 }
+

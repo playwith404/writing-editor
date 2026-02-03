@@ -1,81 +1,93 @@
 "use client"
 
-import { useState } from "react"
 import { useParams } from "next/navigation"
+import { useMutation } from "@tanstack/react-query"
+import { useRef, useState } from "react"
+
 import { api, ApiError } from "@/lib/api"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Archive, Upload, Download } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function BackupPage() {
-    const params = useParams<{ projectId: string }>()
-    const projectId = params?.projectId
-    const [loading, setLoading] = useState(false)
-    const [message, setMessage] = useState<string | null>(null)
+  const params = useParams<{ projectId: string }>()
+  const projectId = params.projectId
 
-    const handleBackup = async () => {
-        if (!projectId) return
-        setLoading(true)
-        setMessage(null)
-        try {
-            // Assume api.backups.export returns string (url) or content
-            // We need to handle file download in browser
-            const data = await api.backups.export(projectId)
-            // Handling download would be here
-            setMessage("백업 파일 생성이 완료되었습니다. (다운로드 시작됨)")
-        } catch (e) {
-            if (e instanceof ApiError) setMessage(`오류: ${e.message}`)
-            else setMessage("백업 실패")
-        } finally {
-            setLoading(false)
-        }
-    }
+  const fileRef = useRef<HTMLInputElement | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importOk, setImportOk] = useState<string | null>(null)
 
-    return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-3xl font-bold tracking-tight">백업 및 복원</h2>
-                <p className="text-muted-foreground">프로젝트 데이터를 안전하게 보관하세요.</p>
-            </div>
+  const exportMutation = useMutation({
+    mutationFn: async () => api.backups.export(projectId),
+    onSuccess: (res) => {
+      const url = URL.createObjectURL(res.blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = res.filename || `cowrite-backup-${projectId}.zip`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    },
+  })
 
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Download className="h-5 w-5" /> 프로젝트 백업 (내보내기)
-                        </CardTitle>
-                        <CardDescription>현재 프로젝트의 모든 데이터를 파일로 저장합니다.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button
-                            className="w-full"
-                            onClick={handleBackup}
-                            disabled={loading}
-                        >
-                            {loading ? "생성 중..." : "백업 파일 생성"}
-                        </Button>
-                    </CardContent>
-                </Card>
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setImportError(null)
+      setImportOk(null)
+      return api.backups.import(file)
+    },
+    onSuccess: () => {
+      setImportOk("백업을 불러왔습니다.")
+      if (fileRef.current) fileRef.current.value = ""
+    },
+    onError: (err) => setImportError(err instanceof ApiError ? err.message : "백업 불러오기에 실패했습니다."),
+  })
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Upload className="h-5 w-5" /> 프로젝트 복원 (가져오기)
-                        </CardTitle>
-                        <CardDescription>백업 파일을 사용하여 프로젝트를 복원합니다.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button variant="outline" className="w-full" disabled>
-                            파일 선택 (구현 예정)
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-            {message && (
-                <div className="p-4 rounded-md bg-muted text-sm text-center">
-                    {message}
-                </div>
-            )}
-        </div>
-    )
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">백업</h2>
+        <p className="text-sm text-muted-foreground">
+          프로젝트 데이터를 ZIP 파일로 내보내고, 동일한 파일로 복원할 수 있습니다.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">내보내기</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Button disabled={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
+            {exportMutation.isPending ? "내보내는 중..." : "백업 파일 다운로드"}
+          </Button>
+          {exportMutation.isError && (
+            <div className="text-sm text-red-600">백업 내보내기에 실패했습니다.</div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">불러오기</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".zip,application/zip"
+            className="block w-full text-sm"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              importMutation.mutate(file)
+            }}
+            disabled={importMutation.isPending}
+          />
+          {importMutation.isPending && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
+          {importOk && <div className="text-sm text-green-700">{importOk}</div>}
+          {importError && <div className="text-sm text-red-600">{importError}</div>}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
