@@ -13,56 +13,26 @@ services:
       - ../.env
     restart: unless-stopped
 
-  core-api:
-    image: cowrite-core:dev
+  backend:
+    image: cowrite-backend:dev
     build:
-      context: ../backend/core
+      context: ../backend
       dockerfile: Dockerfile
     container_name: cowrite-backend
     ports:
       - "8100:3000"
+      - "8102:3001"
+      - "8101:8000"
     volumes:
       - ../uploads:/app/uploads
     env_file:
       - ../.env
     environment:
-      - SERVICE_NAME=core-api
+      - SERVICE_NAME=backend
+      - AI_SERVICE_URL=http://127.0.0.1:8000
+      - CORE_API_INTERNAL_URL=http://127.0.0.1:3000
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - redis
-    restart: unless-stopped
-
-  sync-service:
-    image: cowrite-sync:dev
-    build:
-      context: ../backend/sync
-      dockerfile: Dockerfile
-    container_name: cowrite-sync-service
-    ports:
-      - "8102:3000"
-    env_file:
-      - ../.env
-    environment:
-      - SERVICE_NAME=sync-service
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - redis
-    restart: unless-stopped
-
-  ai-service:
-    image: cowrite-ai:dev
-    build:
-      context: ../backend/ai
-      dockerfile: Dockerfile
-    container_name: cowrite-ai-service
-    ports:
-      - "8101:8000"
-    env_file:
-      - ../.env
-    environment:
-      - SERVICE_NAME=ai-service
     depends_on:
       - redis
     restart: unless-stopped
