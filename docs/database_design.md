@@ -11,7 +11,7 @@
 | 구성 | 기술 |
 |------|------|
 | **Primary DB** | PostgreSQL 16 (직접 설치) |
-| **ORM** | **TypeORM** |
+| **ORM** | Spring Data JPA (Hibernate) |
 | **Cache** | Redis 7 |
 
 ---
@@ -329,39 +329,35 @@ CREATE INDEX idx_ai_usage_user ON ai_usage(user_id, created_at);
 
 ---
 
-## 7. TypeORM Entity 예시
+## 7. JPA Entity 예시
 
-```typescript
-// entities/document.entity.ts
-@Entity('documents')
-export class Document {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+```java
+// core/entity/Document.java
+@Entity
+@Table(name = "documents")
+public class Document {
+    @Id
+    @GeneratedValue
+    @UuidGenerator
+    private UUID id;
 
-  @Column('uuid')
-  projectId: string;
+    @Column(name = "project_id")
+    private UUID projectId;
 
-  @Column('uuid', { nullable: true })
-  parentId: string;
+    @Column(name = "parent_id")
+    private UUID parentId;
 
-  @Column({ length: 20 })
-  type: 'series' | 'part' | 'chapter' | 'scene';
+    @Column(name = "type", length = 20)
+    private String type;
 
-  @Column({ length: 200 })
-  title: string;
+    @Column(name = "title", length = 200)
+    private String title;
 
-  @Column('text', { nullable: true })
-  content: string;
+    @Column(name = "content", columnDefinition = "text")
+    private String content;
 
-  @Column('int', { default: 0 })
-  orderIndex: number;
-
-  @ManyToOne(() => Project)
-  @JoinColumn({ name: 'project_id' })
-  project: Project;
-
-  @OneToMany(() => DocumentVersion, v => v.document)
-  versions: DocumentVersion[];
+    @Column(name = "order_index")
+    private Integer orderIndex;
 }
 ```
 

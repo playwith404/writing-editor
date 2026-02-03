@@ -1,0 +1,53 @@
+server:
+  port: ${PORT:3000}
+
+app:
+  base-url: ${APP_BASE_URL:${NEXT_PUBLIC_APP_URL:http://localhost:3100}}
+
+jwt:
+  secret: ${JWT_SECRET:change_me}
+  expires-in: ${JWT_EXPIRES_IN:15m}
+  refresh-expires-in: ${JWT_REFRESH_EXPIRES_IN:7d}
+
+auth:
+  email-verification-enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+
+elastic:
+  node: ${ELASTICSEARCH_NODE:http://localhost:9200}
+  api-key: ${ELASTICSEARCH_API_KEY:}
+
+ai:
+  service-url: ${AI_SERVICE_URL:http://ai-service:8000}
+
+smtp:
+  host: ${SMTP_HOST:smtp.gmail.com}
+  port: ${SMTP_PORT:587}
+  secure: ${SMTP_SECURE:false}
+  user: ${SMTP_USER:}
+  password: ${SMTP_PASSWORD:}
+  from: ${SMTP_FROM:}
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cowrite}
+    username: ${DB_USER:cowrite}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: ${SMTP_SECURE:false}

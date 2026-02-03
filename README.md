@@ -3,8 +3,8 @@
 This repo contains backend services (excluding frontend) and a CI/CD pipeline that tests, builds, pushes Docker images, and deploys to the dev server.
 
 ## Services
-- `backend/core`: NestJS core API
-- `backend/sync`: NestJS sync service
+- `backend/core`: Spring Boot core API
+- `backend/sync`: Spring WebSocket sync service
 - `backend/ai`: FastAPI AI service
 
 ## CI/CD
@@ -26,6 +26,5 @@ Docker images are pushed to `ms9019/cowrtie` with tags:
 ## Local dev
 ```
 cd backend/core
-npm install
-npm run start:dev
+gradle bootRun
 ```

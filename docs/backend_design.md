@@ -8,40 +8,29 @@
 
 | 영역 | 기술 | 용도 |
 |------|------|------|
-| **Runtime** | Node.js 20 LTS | 메인 서비스 |
-| **Framework** | NestJS 10.x | Core/Sync |
+| **Runtime** | Java 17 | Core/Sync |
+| **Framework** | Spring Boot 3.x | Core/Sync |
 | **Python** | FastAPI | AI 서비스 |
-| **ORM** | **TypeORM** | DB 접근 |
-| **Validation** | class-validator | 입력 검증 |
-| **Queue** | BullMQ + Redis | 비동기 작업 |
+| **ORM** | Spring Data JPA (Hibernate) | DB 접근 |
+| **Validation** | Bean Validation | 입력 검증 |
+| **Queue** | Redis (Optional) | 비동기 작업 |
 | **Cache** | Redis | 세션/캐시 |
 
 ---
 
 ## 2. 서비스별 설계
 
-### 2.1 Core API (NestJS) - :8100
+### 2.1 Core API (Spring Boot) - :8100
 
 ```
-src/
-├── auth/
-│   ├── auth.controller.ts
-│   ├── auth.service.ts
-│   ├── strategies/
-│   │   ├── jwt.strategy.ts
-│   │   ├── google.strategy.ts
-│   │   └── kakao.strategy.ts
-│   ├── guards/
-│   │   ├── jwt.guard.ts
-│   │   └── roles.guard.ts
-│   └── dto/
-├── projects/
-├── documents/
-├── characters/
-├── worldbuilding/
-├── relationships/
-├── stats/
-└── versions/
+src/main/java/store/pjcloud/cowrite/core/
+├── controller/
+├── service/
+├── repository/
+├── entity/
+├── security/
+├── config/
+└── CoreApplication.java
 ```
 
 **엔드포인트:**
@@ -102,7 +91,7 @@ app/
 
 ---
 
-### 2.3 Sync Service - :8102
+### 2.3 Sync Service (Spring WebSocket) - :8102
 
 ```typescript
 // WebSocket 이벤트

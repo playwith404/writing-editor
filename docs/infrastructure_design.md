@@ -38,7 +38,7 @@
 | 서비스 | 포트 | 설명 |
 |--------|------|------|
 | **Frontend** | 3100 | Next.js 웹 앱 |
-| **Core API** | 8100 | NestJS 메인 API |
+| **Core API** | 8100 | Spring Boot 메인 API |
 | **AI Service** | 8101 | FastAPI AI 서비스 |
 | **Sync Service** | 8102 | WebSocket 실시간 |
 | **Media Service** | 8103 | 파일 업로드 (확장) |
@@ -119,7 +119,7 @@ services:
     networks:
       - cowrite-network
 
-  # 코어 API (NestJS)
+  # 코어 API (Spring Boot)
   core-api:
     build:
       context: ./backend/core
@@ -128,12 +128,15 @@ services:
     ports:
       - "8100:3000"
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://cowrite:password@host.docker.internal:5432/cowrite
-      - REDIS_URL=redis://redis:6379
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5432
+      - DB_USER=cowrite
+      - DB_PASSWORD=your_secure_password
+      - DB_NAME=cowrite
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=15m
-      - REFRESH_TOKEN_EXPIRES_IN=7d
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - REDIS_URL=redis://redis:6379
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -169,9 +172,7 @@ services:
     ports:
       - "8102:3000"
     environment:
-      - DATABASE_URL=postgresql://cowrite:password@host.docker.internal:5432/cowrite
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
+      - CORE_API_INTERNAL_URL=http://core-api:3000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -309,7 +310,11 @@ http {
 
 ```bash
 # Database (직접 설치된 PostgreSQL)
-DATABASE_URL=postgresql://cowrite:your_secure_password@localhost:5432/cowrite
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=cowrite
+DB_PASSWORD=your_secure_password
+DB_NAME=cowrite
 
 # Redis
 REDIS_URL=redis://localhost:6379
@@ -317,15 +322,15 @@ REDIS_URL=redis://localhost:6379
 # JWT
 JWT_SECRET=your_very_long_and_secure_jwt_secret_key_here
 JWT_EXPIRES_IN=15m
-REFRESH_TOKEN_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=7d
 
 # AI APIs
 OPENAI_API_KEY=sk-xxx
 ANTHROPIC_API_KEY=sk-ant-xxx
 
 # App
-NODE_ENV=production
-FRONTEND_URL=http://localhost:3100
+APP_BASE_URL=http://localhost:3100
+NEXT_PUBLIC_APP_URL=http://localhost:3100
 
 # Optional
 GOOGLE_CLIENT_ID=xxx
@@ -359,25 +364,21 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
-### Core API (NestJS)
+### Core API (Spring Boot)
 
 ```dockerfile
 # backend/core/Dockerfile
-FROM node:20-alpine AS builder
+FROM gradle:8.6-jdk17 AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+COPY build.gradle settings.gradle ./
+COPY src ./src
+RUN gradle bootJar --no-daemon
 
-FROM node:20-alpine
+FROM eclipse-temurin:17-jre
 WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/build/libs/*.jar app.jar
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["java", "-jar", "/app/app.jar"]
 ```
 
 ### AI Service (FastAPI)

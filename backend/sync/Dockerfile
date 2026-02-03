@@ -1,20 +1,12 @@
-FROM node:20-alpine AS deps
+FROM gradle:8-jdk17 AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY tsconfig.json tsconfig.build.json ./
+COPY build.gradle settings.gradle ./
 COPY src ./src
-RUN npm run build
+RUN gradle bootJar --no-daemon
 
-FROM node:20-alpine
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
+ENV JAVA_OPTS=""
+COPY --from=builder /app/build/libs/*.jar app.jar
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -29,7 +29,7 @@
 ┌──────────────┐     ┌──────────────┐     ┌──────────────────────┐
 │ Core API     │     │ AI Service   │     │   Sync Service       │
 │  :8100       │     │  :8101       │     │   :8102              │
-│  (NestJS)    │     │  (FastAPI)   │     │   (Socket.io)        │
+│ (Spring Boot)│     │  (FastAPI)   │     │ (Spring WebSocket)   │
 └──────┬───────┘     └──────┬───────┘     └──────────┬───────────┘
        │                    │                        │
        │    ┌───────────────┼────────────────┐       │
@@ -49,8 +49,8 @@
 | **Frontend** | Next.js 14, TypeScript, TailwindCSS |
 | **Desktop** | Electron + React |
 | **Mobile** | React Native / Expo |
-| **Backend** | Node.js (NestJS) + Python (FastAPI) |
-| **ORM** | **TypeORM** |
+| **Backend** | Java (Spring Boot) + Python (FastAPI) |
+| **ORM** | Spring Data JPA (Hibernate) |
 | **Database** | PostgreSQL 16 (직접 설치) |
 | **Cache** | Redis 7 (Docker) |
 | **AI/ML** | OpenAI API, Anthropic Claude, Whisper |
@@ -65,9 +65,9 @@
 | 서비스 | 역할 | 기술 | 포트 |
 |--------|------|------|------|
 | **frontend** | 웹 클라이언트 | Next.js | **3100** |
-| **core-api** | 핵심 비즈니스 로직 | NestJS | **8100** |
+| **core-api** | 핵심 비즈니스 로직 | Spring Boot | **8100** |
 | **ai-service** | LLM 연동, AI 기능 | FastAPI | **8101** |
-| **sync-service** | 실시간 협업, WebSocket | Node.js + Socket.io | **8102** |
+| **sync-service** | 실시간 협업, WebSocket | Spring WebSocket | **8102** |
 | **redis** | 캐시, 세션, 큐 | Redis | 6379 |
 | **nginx** | 리버스 프록시 | Nginx | 80, 443 |
 | **postgresql** | 메인 DB | PostgreSQL | 5432 (직접 설치) |
