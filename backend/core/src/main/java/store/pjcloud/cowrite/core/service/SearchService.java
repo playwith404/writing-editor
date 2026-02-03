@@ -33,6 +33,7 @@ public class SearchService {
 
     private final ElasticsearchClient client;
     private final List<String> indices = List.of("documents", "characters", "world_settings", "plots", "projects");
+    private volatile boolean elasticEnabled = true;
 
     public SearchService(ElasticProperties properties) {
         RestClientBuilder builder = RestClient.builder(HttpHost.create(properties.getNode()));
@@ -47,8 +48,13 @@ public class SearchService {
         try {
             ensureIndices();
         } catch (Exception ex) {
-            log.warn("Failed to ensure search indices");
+            elasticEnabled = false;
+            log.warn("검색(Elasticsearch)을 사용할 수 없습니다. DB 검색으로 폴백합니다.");
         }
+    }
+
+    public boolean isElasticEnabled() {
+        return elasticEnabled;
     }
 
     public void ensureIndices() throws IOException {
@@ -61,14 +67,17 @@ public class SearchService {
     }
 
     public void indexDocument(String index, String id, Map<String, Object> body) {
+        if (!elasticEnabled) return;
         try {
             client.index(b -> b.index(index).id(id).document(body).refresh(Refresh.WaitFor));
         } catch (Exception ex) {
+            elasticEnabled = false;
             log.warn("Indexing failed for {}:{}", index, id);
         }
     }
 
     public List<SearchHit> search(String query, List<String> projectIds, String type) {
+        if (!elasticEnabled) return List.of();
         if (projectIds == null || projectIds.isEmpty()) return List.of();
         List<String> searchIndices = type != null && indices.contains(type)
             ? List.of(type)
@@ -94,11 +103,13 @@ public class SearchService {
             }
             return hits;
         } catch (Exception ex) {
+            elasticEnabled = false;
             return List.of();
         }
     }
 
     public List<SearchHit> searchProjects(String query, List<String> projectIds) {
+        if (!elasticEnabled) return List.of();
         if (projectIds == null || projectIds.isEmpty()) return List.of();
         try {
             SearchRequest request = SearchRequest.of(b -> b
@@ -119,6 +130,7 @@ public class SearchService {
             }
             return hits;
         } catch (Exception ex) {
+            elasticEnabled = false;
             return List.of();
         }
     }

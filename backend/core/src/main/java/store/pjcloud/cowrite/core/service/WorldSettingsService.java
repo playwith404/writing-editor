@@ -35,12 +35,12 @@ public class WorldSettingsService extends ProjectScopedCrudService<WorldSetting>
     }
 
     private void index(WorldSetting setting) {
-        searchService.indexDocument("world_settings", setting.getId().toString(), Map.of(
-            "id", setting.getId().toString(),
-            "projectId", setting.getProjectId().toString(),
-            "title", setting.getTitle(),
-            "content", setting.getContent(),
-            "category", setting.getCategory()
-        ));
+        Map<String, Object> doc = new java.util.HashMap<>();
+        doc.put("id", setting.getId() == null ? null : setting.getId().toString());
+        doc.put("projectId", setting.getProjectId() == null ? null : setting.getProjectId().toString());
+        doc.put("title", setting.getTitle());
+        doc.put("content", setting.getContent());
+        doc.put("category", setting.getCategory());
+        searchService.indexDocument("world_settings", setting.getId().toString(), doc);
     }
 }

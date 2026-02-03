@@ -121,13 +121,13 @@ public class DocumentVersionsService {
         Document updated = documentsRepo.save(doc);
 
         refreshProjectWordCount(updated.getProjectId());
-        searchService.indexDocument("documents", updated.getId().toString(), java.util.Map.of(
-            "id", updated.getId().toString(),
-            "projectId", updated.getProjectId().toString(),
-            "title", updated.getTitle(),
-            "content", updated.getContent(),
-            "type", updated.getType()
-        ));
+        java.util.Map<String, Object> indexed = new java.util.HashMap<>();
+        indexed.put("id", updated.getId() == null ? null : updated.getId().toString());
+        indexed.put("projectId", updated.getProjectId() == null ? null : updated.getProjectId().toString());
+        indexed.put("title", updated.getTitle());
+        indexed.put("content", updated.getContent());
+        indexed.put("type", updated.getType());
+        searchService.indexDocument("documents", updated.getId().toString(), indexed);
 
         return updated;
     }

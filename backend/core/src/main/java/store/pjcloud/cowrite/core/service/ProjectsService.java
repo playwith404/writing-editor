@@ -35,6 +35,11 @@ public class ProjectsService {
         return projects;
     }
 
+    public long countOwnedActiveProjects(UUID userId) {
+        if (userId == null) return 0;
+        return projectRepository.countByOwnerIdAndDeletedAtIsNull(userId);
+    }
+
     public Project findOneForUser(UUID userId, UUID projectId) {
         Project project = projectRepository.findById(projectId).orElse(null);
         if (project == null || project.getDeletedAt() != null) return null;
@@ -59,13 +64,13 @@ public class ProjectsService {
     @Transactional
     public Project create(Project project) {
         Project saved = projectRepository.save(project);
-        searchService.indexDocument("projects", saved.getId().toString(), java.util.Map.of(
-            "id", saved.getId().toString(),
-            "title", saved.getTitle(),
-            "description", saved.getDescription(),
-            "genre", saved.getGenre(),
-            "ownerId", saved.getOwnerId().toString()
-        ));
+        java.util.Map<String, Object> doc = new java.util.HashMap<>();
+        doc.put("id", saved.getId().toString());
+        doc.put("title", saved.getTitle());
+        doc.put("description", saved.getDescription());
+        doc.put("genre", saved.getGenre());
+        doc.put("ownerId", saved.getOwnerId() == null ? null : saved.getOwnerId().toString());
+        searchService.indexDocument("projects", saved.getId().toString(), doc);
         return saved;
     }
 
@@ -79,13 +84,13 @@ public class ProjectsService {
         if (patch.getSettings() != null) project.setSettings(patch.getSettings());
         if (patch.getIsPublic() != null) project.setIsPublic(patch.getIsPublic());
         Project saved = projectRepository.save(project);
-        searchService.indexDocument("projects", saved.getId().toString(), java.util.Map.of(
-            "id", saved.getId().toString(),
-            "title", saved.getTitle(),
-            "description", saved.getDescription(),
-            "genre", saved.getGenre(),
-            "ownerId", saved.getOwnerId().toString()
-        ));
+        java.util.Map<String, Object> doc = new java.util.HashMap<>();
+        doc.put("id", saved.getId().toString());
+        doc.put("title", saved.getTitle());
+        doc.put("description", saved.getDescription());
+        doc.put("genre", saved.getGenre());
+        doc.put("ownerId", saved.getOwnerId() == null ? null : saved.getOwnerId().toString());
+        searchService.indexDocument("projects", saved.getId().toString(), doc);
         return saved;
     }
 

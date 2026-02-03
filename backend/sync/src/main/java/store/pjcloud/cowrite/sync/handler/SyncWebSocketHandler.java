@@ -57,7 +57,12 @@ public class SyncWebSocketHandler extends TextWebSocketHandler {
             }
 
             if ("leave".equals(type)) {
-                broadcast(meta.projectId, Map.of("type", "presence:leave", "userId", meta.userId), meta);
+                if (meta.projectId != null && meta.userId != null) {
+                    Map<String, Object> payload = new java.util.HashMap<>();
+                    payload.put("type", "presence:leave");
+                    payload.put("userId", meta.userId);
+                    broadcast(meta.projectId, payload, meta);
+                }
                 meta.projectId = null;
                 return;
             }
@@ -67,21 +72,21 @@ public class SyncWebSocketHandler extends TextWebSocketHandler {
             }
 
             if ("content:op".equals(type)) {
-                broadcast(meta.projectId, Map.of(
-                    "type", "content:sync",
-                    "payload", data.get("payload"),
-                    "userId", meta.userId
-                ), meta);
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("type", "content:sync");
+                payload.put("payload", data.get("payload"));
+                payload.put("userId", meta.userId);
+                broadcast(meta.projectId, payload, meta);
                 return;
             }
 
             if ("cursor:move".equals(type) || "presence:update".equals(type)) {
                 String event = "cursor:move".equals(type) ? "cursor:update" : "presence:change";
-                broadcast(meta.projectId, Map.of(
-                    "type", event,
-                    "payload", data.get("payload"),
-                    "userId", meta.userId
-                ), meta);
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("type", event);
+                payload.put("payload", data.get("payload"));
+                payload.put("userId", meta.userId);
+                broadcast(meta.projectId, payload, meta);
             }
         } catch (Exception ex) {
             log.warn("유효하지 않은 메시지입니다.");

@@ -148,14 +148,14 @@ public class BetaSessionsService {
         String baseUrl = appProperties.getBaseUrl() == null ? "http://localhost:3100" : appProperties.getBaseUrl();
         String inviteUrl = baseUrl.replaceAll("/$", "") + "/beta-invite?token=" + java.net.URLEncoder.encode(rawToken, java.nio.charset.StandardCharsets.UTF_8);
 
-        return Map.of(
-            "success", true,
-            "inviteId", invite.getId(),
-            "token", rawToken,
-            "inviteUrl", inviteUrl,
-            "expiresAt", invite.getExpiresAt(),
-            "maxUses", invite.getMaxUses()
-        );
+        Map<String, Object> res = new java.util.HashMap<>();
+        res.put("success", true);
+        res.put("inviteId", invite.getId());
+        res.put("token", rawToken);
+        res.put("inviteUrl", inviteUrl);
+        res.put("expiresAt", invite.getExpiresAt());
+        res.put("maxUses", invite.getMaxUses());
+        return res;
     }
 
     public Map<String, Object> getInviteInfo(UUID userId, String token) {
@@ -176,22 +176,24 @@ public class BetaSessionsService {
         BetaSession session = sessionsRepo.findById(invite.getSessionId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "베타 세션을 찾을 수 없습니다."));
 
-        return Map.of(
-            "session", Map.of(
-                "id", session.getId(),
-                "projectId", session.getProjectId(),
-                "documentId", session.getDocumentId(),
-                "title", session.getTitle(),
-                "description", session.getDescription(),
-                "status", session.getStatus()
-            ),
-            "invite", Map.of(
-                "id", invite.getId(),
-                "expiresAt", invite.getExpiresAt(),
-                "maxUses", invite.getMaxUses(),
-                "uses", invite.getUses()
-            )
-        );
+        Map<String, Object> sessionRow = new java.util.HashMap<>();
+        sessionRow.put("id", session.getId());
+        sessionRow.put("projectId", session.getProjectId());
+        sessionRow.put("documentId", session.getDocumentId());
+        sessionRow.put("title", session.getTitle());
+        sessionRow.put("description", session.getDescription());
+        sessionRow.put("status", session.getStatus());
+
+        Map<String, Object> inviteRow = new java.util.HashMap<>();
+        inviteRow.put("id", invite.getId());
+        inviteRow.put("expiresAt", invite.getExpiresAt());
+        inviteRow.put("maxUses", invite.getMaxUses());
+        inviteRow.put("uses", invite.getUses());
+
+        Map<String, Object> res = new java.util.HashMap<>();
+        res.put("session", sessionRow);
+        res.put("invite", inviteRow);
+        return res;
     }
 
     @Transactional
@@ -240,15 +242,17 @@ public class BetaSessionsService {
         List<UUID> userIds = participants.stream().map(BetaSessionParticipant::getUserId).toList();
         Map<UUID, User> userMap = usersRepo.findAllById(userIds).stream().collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
 
-        return participants.stream().map(p -> Map.of(
-            "id", p.getId(),
-            "sessionId", p.getSessionId(),
-            "userId", p.getUserId(),
-            "status", p.getStatus(),
-            "displayName", p.getDisplayName(),
-            "joinedAt", p.getJoinedAt(),
-            "user", userMap.getOrDefault(p.getUserId(), null)
-        )).toList();
+        return participants.stream().map(p -> {
+            Map<String, Object> row = new java.util.HashMap<>();
+            row.put("id", p.getId());
+            row.put("sessionId", p.getSessionId());
+            row.put("userId", p.getUserId());
+            row.put("status", p.getStatus());
+            row.put("displayName", p.getDisplayName());
+            row.put("joinedAt", p.getJoinedAt());
+            row.put("user", userMap.get(p.getUserId()));
+            return row;
+        }).toList();
     }
 
     public Document getSessionDocumentForUser(UUID userId, UUID sessionId) {

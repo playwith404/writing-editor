@@ -83,13 +83,13 @@ public class DocumentsService {
         }
 
         refreshProjectWordCount(saved.getProjectId());
-        searchService.indexDocument("documents", saved.getId().toString(), Map.of(
-            "id", saved.getId().toString(),
-            "projectId", saved.getProjectId().toString(),
-            "title", saved.getTitle(),
-            "content", saved.getContent(),
-            "type", saved.getType()
-        ));
+        Map<String, Object> indexed = new java.util.HashMap<>();
+        indexed.put("id", saved.getId() == null ? null : saved.getId().toString());
+        indexed.put("projectId", saved.getProjectId() == null ? null : saved.getProjectId().toString());
+        indexed.put("title", saved.getTitle());
+        indexed.put("content", saved.getContent());
+        indexed.put("type", saved.getType());
+        searchService.indexDocument("documents", saved.getId().toString(), indexed);
 
         return saved;
     }
@@ -129,13 +129,13 @@ public class DocumentsService {
             refreshProjectWordCount(saved.getProjectId());
         }
 
-        searchService.indexDocument("documents", saved.getId().toString(), Map.of(
-            "id", saved.getId().toString(),
-            "projectId", saved.getProjectId().toString(),
-            "title", saved.getTitle(),
-            "content", saved.getContent(),
-            "type", saved.getType()
-        ));
+        Map<String, Object> indexed = new java.util.HashMap<>();
+        indexed.put("id", saved.getId() == null ? null : saved.getId().toString());
+        indexed.put("projectId", saved.getProjectId() == null ? null : saved.getProjectId().toString());
+        indexed.put("title", saved.getTitle());
+        indexed.put("content", saved.getContent());
+        indexed.put("type", saved.getType());
+        searchService.indexDocument("documents", saved.getId().toString(), indexed);
 
         return saved;
     }

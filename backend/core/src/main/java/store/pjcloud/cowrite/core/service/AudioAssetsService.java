@@ -66,15 +66,14 @@ public class AudioAssetsService {
         String text = String.join("\n\n", java.util.List.of(doc.getTitle(), doc.getContent()).stream().filter(v -> v != null && !v.isBlank()).toList());
         if (text.isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "문서 내용이 없습니다.");
 
-        Map<String, Object> payload = Map.of(
-            "text", text,
-            "voice", body.get("voice"),
-            "provider", body.get("provider"),
-            "model", body.get("model"),
-            "projectId", doc.getProjectId().toString()
-        );
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("text", text);
+        payload.put("projectId", doc.getProjectId().toString());
+        if (body.get("voice") instanceof String s && !s.isBlank()) payload.put("voice", s);
+        if (body.get("provider") instanceof String s && !s.isBlank()) payload.put("provider", s);
+        if (body.get("model") instanceof String s && !s.isBlank()) payload.put("model", s);
 
-        Object ai = aiService.proxy(user, "tts", "/ai/tts", new java.util.HashMap<>(payload));
+        Object ai = aiService.proxy(user, "tts", "/ai/tts", payload);
         AudioAsset asset = new AudioAsset();
         asset.setDocumentId(doc.getId());
         asset.setVoice(body.get("voice") instanceof String s ? s : null);

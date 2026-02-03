@@ -71,15 +71,14 @@ public class TranslationsService {
         String text = String.join("\n\n", java.util.List.of(doc.getTitle(), doc.getContent()).stream().filter(v -> v != null && !v.isBlank()).toList());
         if (text.isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "문서 내용이 없습니다.");
 
-        Map<String, Object> payload = Map.of(
-            "text", text,
-            "target_language", targetLangObj,
-            "provider", body.get("provider"),
-            "model", body.get("model"),
-            "projectId", doc.getProjectId().toString()
-        );
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("text", text);
+        payload.put("target_language", targetLangObj);
+        payload.put("projectId", doc.getProjectId().toString());
+        if (body.get("provider") instanceof String s && !s.isBlank()) payload.put("provider", s);
+        if (body.get("model") instanceof String s && !s.isBlank()) payload.put("model", s);
 
-        Object ai = aiService.proxy(user, "translate", "/ai/translate", new java.util.HashMap<>(payload));
+        Object ai = aiService.proxy(user, "translate", "/ai/translate", payload);
         String content = null;
         if (ai instanceof Map<?, ?> map && map.get("content") instanceof String s) content = s;
 

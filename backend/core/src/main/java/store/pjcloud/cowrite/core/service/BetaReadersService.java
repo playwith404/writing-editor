@@ -81,17 +81,19 @@ public class BetaReadersService {
         List<UUID> userIds = profiles.stream().map(BetaReaderProfile::getUserId).toList();
         Map<UUID, User> userMap = usersRepo.findAllById(userIds).stream().collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
 
-        return profiles.stream().map(p -> Map.of(
-            "id", p.getId(),
-            "userId", p.getUserId(),
-            "preferredGenres", p.getPreferredGenres(),
-            "readingVolume", p.getReadingVolume(),
-            "feedbackStyle", p.getFeedbackStyle(),
-            "bio", p.getBio(),
-            "isActive", p.getIsActive(),
-            "createdAt", p.getCreatedAt(),
-            "updatedAt", p.getUpdatedAt(),
-            "user", userMap.getOrDefault(p.getUserId(), null)
-        )).toList();
+        return profiles.stream().map(p -> {
+            Map<String, Object> row = new java.util.HashMap<>();
+            row.put("id", p.getId());
+            row.put("userId", p.getUserId());
+            row.put("preferredGenres", p.getPreferredGenres());
+            row.put("readingVolume", p.getReadingVolume());
+            row.put("feedbackStyle", p.getFeedbackStyle());
+            row.put("bio", p.getBio());
+            row.put("isActive", p.getIsActive());
+            row.put("createdAt", p.getCreatedAt());
+            row.put("updatedAt", p.getUpdatedAt());
+            row.put("user", userMap.get(p.getUserId()));
+            return row;
+        }).toList();
     }
 }

@@ -10,6 +10,7 @@ import store.pjcloud.cowrite.core.entity.Project;
 
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
     List<Project> findByOwnerId(UUID ownerId);
+    long countByOwnerIdAndDeletedAtIsNull(UUID ownerId);
     boolean existsByIdAndOwnerId(UUID id, UUID ownerId);
 
     @Modifying

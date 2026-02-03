@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import store.pjcloud.cowrite.core.security.SecurityUtils;
 import store.pjcloud.cowrite.core.service.ProjectAccessService;
+import store.pjcloud.cowrite.core.service.SearchFallbackService;
 import store.pjcloud.cowrite.core.service.SearchService;
 
 @RestController
@@ -15,10 +16,12 @@ import store.pjcloud.cowrite.core.service.SearchService;
 public class SearchController {
     private final SearchService searchService;
     private final ProjectAccessService projectAccessService;
+    private final SearchFallbackService fallbackService;
 
-    public SearchController(SearchService searchService, ProjectAccessService projectAccessService) {
+    public SearchController(SearchService searchService, ProjectAccessService projectAccessService, SearchFallbackService fallbackService) {
         this.searchService = searchService;
         this.projectAccessService = projectAccessService;
+        this.fallbackService = fallbackService;
     }
 
     @GetMapping
@@ -30,10 +33,24 @@ public class SearchController {
 
         if ("projects".equals(type)) {
             List<UUID> projectIds = projectAccessService.getAccessibleProjectIds(userId);
-            return searchService.searchProjects(q, projectIds.stream().map(UUID::toString).toList());
+            if (!searchService.isElasticEnabled()) {
+                return fallbackService.searchProjects(q, projectIds);
+            }
+            List<SearchService.SearchHit> hits = searchService.searchProjects(q, projectIds.stream().map(UUID::toString).toList());
+            if (!searchService.isElasticEnabled()) {
+                return fallbackService.searchProjects(q, projectIds);
+            }
+            return hits;
         }
 
         List<UUID> projectIds = projectAccessService.filterAccessibleProjectIds(userId, projectId);
-        return searchService.search(q, projectIds.stream().map(UUID::toString).toList(), type);
+        if (!searchService.isElasticEnabled()) {
+            return fallbackService.search(q, projectIds, type);
+        }
+        List<SearchService.SearchHit> hits = searchService.search(q, projectIds.stream().map(UUID::toString).toList(), type);
+        if (!searchService.isElasticEnabled()) {
+            return fallbackService.search(q, projectIds, type);
+        }
+        return hits;
     }
 }

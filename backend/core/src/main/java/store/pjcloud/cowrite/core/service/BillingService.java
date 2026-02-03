@@ -60,15 +60,15 @@ public class BillingService {
         }
 
         Subscription normalized = downgradeIfExpired(userId, subscription);
-        return Map.of(
-            "id", normalized.getId(),
-            "plan", normalized.getPlan(),
-            "status", normalized.getStatus(),
-            "provider", normalized.getProvider(),
-            "currentPeriodStart", normalized.getCurrentPeriodStart(),
-            "currentPeriodEnd", normalized.getCurrentPeriodEnd(),
-            "cancelAtPeriodEnd", normalized.getCancelAtPeriodEnd()
-        );
+        Map<String, Object> res = new java.util.HashMap<>();
+        res.put("id", normalized.getId());
+        res.put("plan", normalized.getPlan());
+        res.put("status", normalized.getStatus());
+        res.put("provider", normalized.getProvider());
+        res.put("currentPeriodStart", normalized.getCurrentPeriodStart());
+        res.put("currentPeriodEnd", normalized.getCurrentPeriodEnd());
+        res.put("cancelAtPeriodEnd", normalized.getCancelAtPeriodEnd());
+        return res;
     }
 
     private Subscription downgradeIfExpired(UUID userId, Subscription subscription) {

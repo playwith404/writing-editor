@@ -5,20 +5,43 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Date;
 import javax.crypto.SecretKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import store.pjcloud.cowrite.core.config.JwtProperties;
 
 @Service
 public class JwtTokenService {
+    private static final Logger log = LoggerFactory.getLogger(JwtTokenService.class);
     private final JwtProperties properties;
     private final SecretKey key;
 
     public JwtTokenService(JwtProperties properties) {
         this.properties = properties;
-        this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
+        byte[] secretBytes = properties.getSecret() == null ? new byte[0] : properties.getSecret().getBytes(StandardCharsets.UTF_8);
+        if (secretBytes.length == 0) {
+            throw new IllegalArgumentException("JWT_SECRET가 필요합니다.");
+        }
+        // HS256은 최소 256-bit key가 필요합니다. (사용자 설정이 짧아도 서버가 기동되도록 SHA-256으로 확장)
+        if (secretBytes.length < 32) {
+            log.warn("JWT_SECRET 길이가 짧습니다(현재 {} bytes). SHA-256으로 확장된 키를 사용합니다.", secretBytes.length);
+            secretBytes = sha256(secretBytes);
+        }
+        this.key = Keys.hmacShaKeyFor(secretBytes);
+    }
+
+    private byte[] sha256(byte[] input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return md.digest(input);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256을 사용할 수 없습니다.");
+        }
     }
 
     public String generateAccessToken(String userId, String email, String role) {

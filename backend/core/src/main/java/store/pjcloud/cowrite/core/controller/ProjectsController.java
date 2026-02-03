@@ -3,6 +3,8 @@ package store.pjcloud.cowrite.core.controller;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import store.pjcloud.cowrite.core.entity.Project;
 import store.pjcloud.cowrite.core.entity.ProjectMember;
 import store.pjcloud.cowrite.core.security.SecurityUtils;
@@ -39,6 +41,13 @@ public class ProjectsController {
     @PostMapping
     public Project create(@RequestBody ProjectCreateRequest request) {
         UUID userId = SecurityUtils.requireUserId();
+        String role = SecurityUtils.getRole();
+        if (role == null || "user".equals(role)) {
+            long owned = projectsService.countOwnedActiveProjects(userId);
+            if (owned >= 1) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Free 플랜은 프로젝트를 1개까지만 생성할 수 있습니다.");
+            }
+        }
         Project project = new Project();
         project.setOwnerId(userId);
         project.setTitle(request.title());
@@ -73,7 +82,11 @@ public class ProjectsController {
     public Object access(@PathVariable("id") UUID id) {
         UUID userId = SecurityUtils.requireUserId();
         projectAccessService.assertProjectAccess(userId, id);
-        return java.util.Map.of("ok", true, "userId", userId.toString(), "role", SecurityUtils.getRole());
+        java.util.Map<String, Object> res = new java.util.HashMap<>();
+        res.put("ok", true);
+        res.put("userId", userId.toString());
+        res.put("role", SecurityUtils.getRole());
+        return res;
     }
 
     @GetMapping("/{id}/members")

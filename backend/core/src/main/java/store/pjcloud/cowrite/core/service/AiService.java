@@ -58,11 +58,11 @@ public class AiService {
         Integer limit = getMonthlyLimit(role);
         long used = requestsRepo.countByUserIdAndCreatedAtAfter(userId, startOfCurrentMonthUtc());
         Integer remaining = limit == null ? null : Math.max(limit - (int) used, 0);
-        return Map.of(
-            "limit", limit,
-            "used", used,
-            "remaining", remaining
-        );
+        Map<String, Object> quota = new java.util.HashMap<>();
+        quota.put("limit", limit);
+        quota.put("used", used);
+        quota.put("remaining", remaining);
+        return quota;
     }
 
     private void assertQuota(UUID userId, String role) {
@@ -149,7 +149,9 @@ public class AiService {
 
     private AiRequest updateRequestFailed(AiRequest request, String error) {
         request.setStatus("failed");
-        request.setResult(Map.of("error", error));
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("error", error == null ? "AI 서비스 요청에 실패했습니다." : error);
+        request.setResult(result);
         request.setCompletedAt(OffsetDateTime.now());
         return request;
     }

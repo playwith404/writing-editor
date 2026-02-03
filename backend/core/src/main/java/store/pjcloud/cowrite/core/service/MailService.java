@@ -2,6 +2,7 @@ package store.pjcloud.cowrite.core.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -121,6 +122,32 @@ public class MailService {
             mailSender.send(message);
         } catch (MessagingException ex) {
             log.error("SMTP 메일 발송 실패", ex);
+            throw new IllegalStateException("메일을 발송할 수 없습니다.");
+        }
+    }
+
+    public void sendAttachment(String to, String subject, String text, String filename, String mimeType, byte[] content) {
+        if (to == null || to.isBlank()) throw new IllegalArgumentException("to가 필요합니다.");
+        if (subject == null || subject.isBlank()) throw new IllegalArgumentException("subject가 필요합니다.");
+        if (filename == null || filename.isBlank()) filename = "cowrite-export";
+        if (mimeType == null || mimeType.isBlank()) mimeType = "application/octet-stream";
+        if (content == null) content = new byte[0];
+
+        String from = smtpProperties.getFrom() != null && !smtpProperties.getFrom().isBlank()
+            ? smtpProperties.getFrom()
+            : smtpProperties.getUser();
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(text == null ? "" : text, false);
+            helper.addAttachment(filename, new ByteArrayResource(content), mimeType);
+            mailSender.send(message);
+        } catch (MessagingException ex) {
+            log.error("SMTP 첨부메일 발송 실패", ex);
             throw new IllegalStateException("메일을 발송할 수 없습니다.");
         }
     }

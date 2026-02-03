@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import store.pjcloud.cowrite.core.security.SecurityUtils;
 import store.pjcloud.cowrite.core.service.ProjectAccessService;
@@ -26,5 +27,17 @@ public class StatsController {
         UUID userId = SecurityUtils.requireUserId();
         projectAccessService.assertProjectAccess(userId, projectId);
         return statsService.projectStats(projectId);
+    }
+
+    @GetMapping("/projects/{projectId}/daily")
+    public Object dailyStats(@PathVariable("projectId") UUID projectId,
+                             @RequestParam(value = "days", required = false, defaultValue = "30") int days) {
+        UUID userId = SecurityUtils.requireUserId();
+        projectAccessService.assertProjectAccess(userId, projectId);
+        return java.util.Map.of(
+            "projectId", projectId,
+            "days", Math.max(1, Math.min(days, 365)),
+            "series", statsService.dailyWords(projectId, days)
+        );
     }
 }

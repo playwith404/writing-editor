@@ -52,12 +52,12 @@ public class MediaController {
         }
 
         MediaAsset asset = mediaService.upload(new AiService.UserContext(userId, role), file, projectId);
-        return Map.of(
-            "id", asset.getId(),
-            "url", asset.getUrl(),
-            "mimeType", asset.getMimeType(),
-            "size", asset.getSize()
-        );
+        Map<String, Object> res = new java.util.HashMap<>();
+        res.put("id", asset.getId());
+        res.put("url", asset.getUrl());
+        res.put("mimeType", asset.getMimeType());
+        res.put("size", asset.getSize());
+        return res;
     }
 
     @GetMapping("/{id}")

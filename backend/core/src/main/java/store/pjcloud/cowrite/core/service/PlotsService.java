@@ -35,11 +35,11 @@ public class PlotsService extends ProjectScopedCrudService<Plot> {
     }
 
     private void index(Plot plot) {
-        searchService.indexDocument("plots", plot.getId().toString(), Map.of(
-            "id", plot.getId().toString(),
-            "projectId", plot.getProjectId().toString(),
-            "title", plot.getTitle(),
-            "description", plot.getDescription()
-        ));
+        Map<String, Object> doc = new java.util.HashMap<>();
+        doc.put("id", plot.getId() == null ? null : plot.getId().toString());
+        doc.put("projectId", plot.getProjectId() == null ? null : plot.getProjectId().toString());
+        doc.put("title", plot.getTitle());
+        doc.put("description", plot.getDescription());
+        searchService.indexDocument("plots", plot.getId().toString(), doc);
     }
 }

@@ -35,12 +35,12 @@ public class CharactersService extends ProjectScopedCrudService<Character> {
     }
 
     private void index(Character character) {
-        searchService.indexDocument("characters", character.getId().toString(), Map.of(
-            "id", character.getId().toString(),
-            "projectId", character.getProjectId().toString(),
-            "name", character.getName(),
-            "role", character.getRole(),
-            "backstory", character.getBackstory()
-        ));
+        Map<String, Object> doc = new java.util.HashMap<>();
+        doc.put("id", character.getId() == null ? null : character.getId().toString());
+        doc.put("projectId", character.getProjectId() == null ? null : character.getProjectId().toString());
+        doc.put("name", character.getName());
+        doc.put("role", character.getRole());
+        doc.put("backstory", character.getBackstory());
+        searchService.indexDocument("characters", character.getId().toString(), doc);
     }
 }
