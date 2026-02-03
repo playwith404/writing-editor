@@ -42,4 +42,12 @@ jobs:
               echo "Missing /srv/cowrite/.env" >&2
               exit 1
             fi
-            docker compose -f deploy/docker-compose.dev.yml up -d --build
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE_CMD="docker-compose"
+            else
+              echo "Missing docker compose on server" >&2
+              exit 1
+            fi
+            $COMPOSE_CMD -f deploy/docker-compose.dev.yml up -d --build
