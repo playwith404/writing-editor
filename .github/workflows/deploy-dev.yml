@@ -20,16 +20,19 @@ jobs:
           script: |
             set -e
             REPO_DIR=/srv/cowrite
+            ENV_BACKUP=""
             if [ -d "$REPO_DIR" ] && [ ! -d "$REPO_DIR/.git" ]; then
               BACKUP_DIR="${REPO_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
               mv "$REPO_DIR" "$BACKUP_DIR"
               if [ -f "$BACKUP_DIR/.env" ]; then
-                mkdir -p "$REPO_DIR"
-                cp "$BACKUP_DIR/.env" "$REPO_DIR/.env"
+                ENV_BACKUP="$BACKUP_DIR/.env"
               fi
             fi
             if [ ! -d "$REPO_DIR/.git" ]; then
               git clone -b dev https://github.com/Krminsung/cowrite.git "$REPO_DIR"
+            fi
+            if [ -n "$ENV_BACKUP" ] && [ ! -f "$REPO_DIR/.env" ]; then
+              cp "$ENV_BACKUP" "$REPO_DIR/.env"
             fi
             cd "$REPO_DIR"
             git fetch origin dev
