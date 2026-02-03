@@ -50,4 +50,6 @@ jobs:
               echo "Missing docker compose on server" >&2
               exit 1
             fi
-            $COMPOSE_CMD -f deploy/docker-compose.dev.yml up -d --build
+            # Ensure we can redeploy even if containers were started outside compose
+            docker rm -f cowrite-frontend cowrite-backend cowrite-sync-service cowrite-ai-service cowrite-redis 2>/dev/null || true
+            $COMPOSE_CMD -p cowrite -f deploy/docker-compose.dev.yml up -d --build --remove-orphans
