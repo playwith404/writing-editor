@@ -34,7 +34,5 @@ GEMINI_MODEL=gemini-1.5-pro
 ## 3) 배포 명령(로컬에서 테스트)
 ```
 cd /srv/cowrite
-cp /path/to/docker-compose.dev.yml ./
-docker compose -f docker-compose.dev.yml pull
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f deploy/docker-compose.dev.yml up -d --build
 ```

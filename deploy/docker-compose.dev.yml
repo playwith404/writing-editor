@@ -2,7 +2,10 @@ version: "3.8"
 
 services:
   frontend:
-    image: ms9019/cowrtie:frontend-dev-latest
+    image: cowrite-frontend:dev
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
     container_name: cowrite-frontend
     ports:
       - "3100:3000"
@@ -11,7 +14,10 @@ services:
     restart: unless-stopped
 
   core-api:
-    image: ms9019/cowrtie:core-dev-latest
+    image: cowrite-core:dev
+    build:
+      context: ../backend/core
+      dockerfile: Dockerfile
     container_name: cowrite-backend
     ports:
       - "8100:3000"
@@ -28,7 +34,10 @@ services:
     restart: unless-stopped
 
   sync-service:
-    image: ms9019/cowrtie:sync-dev-latest
+    image: cowrite-sync:dev
+    build:
+      context: ../backend/sync
+      dockerfile: Dockerfile
     container_name: cowrite-sync-service
     ports:
       - "8102:3000"
@@ -43,7 +52,10 @@ services:
     restart: unless-stopped
 
   ai-service:
-    image: ms9019/cowrtie:ai-dev-latest
+    image: cowrite-ai:dev
+    build:
+      context: ../backend/ai
+      dockerfile: Dockerfile
     container_name: cowrite-ai-service
     ports:
       - "8101:8000"
