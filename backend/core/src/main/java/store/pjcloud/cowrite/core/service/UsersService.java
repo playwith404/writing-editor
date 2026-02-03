@@ -40,26 +40,28 @@ public class UsersService {
 
     @Transactional
     public User update(UUID id, User update) {
-        return applyUpdate(id, update, false);
+        return applyUpdate(id, update);
     }
 
     @Transactional
     public User updateAllowNulls(UUID id, User update) {
-        return applyUpdate(id, update, true);
+        // NOTE: We cannot reliably distinguish "field omitted" vs "explicit null" with our current DTOs.
+        // Treat this as a partial update that ignores nulls to avoid accidentally wiping required columns.
+        return applyUpdate(id, update);
     }
 
-    private User applyUpdate(UUID id, User update, boolean allowNulls) {
+    private User applyUpdate(UUID id, User update) {
         User user = userRepository.findById(id).orElseThrow();
-        if (allowNulls || update.getEmail() != null) user.setEmail(update.getEmail());
-        if (allowNulls || update.getName() != null) user.setName(update.getName());
-        if (allowNulls || update.getPasswordHash() != null) user.setPasswordHash(update.getPasswordHash());
-        if (allowNulls || update.getAvatarUrl() != null) user.setAvatarUrl(update.getAvatarUrl());
-        if (allowNulls || update.getOauthProvider() != null) user.setOauthProvider(update.getOauthProvider());
-        if (allowNulls || update.getOauthId() != null) user.setOauthId(update.getOauthId());
-        if (allowNulls || update.getSettings() != null) user.setSettings(update.getSettings());
-        if (allowNulls || update.getRole() != null) user.setRole(update.getRole());
-        if (allowNulls || update.getEmailVerifiedAt() != null) user.setEmailVerifiedAt(update.getEmailVerifiedAt());
-        if (allowNulls || update.getDeletedAt() != null) user.setDeletedAt(update.getDeletedAt());
+        if (update.getEmail() != null) user.setEmail(update.getEmail());
+        if (update.getName() != null) user.setName(update.getName());
+        if (update.getPasswordHash() != null) user.setPasswordHash(update.getPasswordHash());
+        if (update.getAvatarUrl() != null) user.setAvatarUrl(update.getAvatarUrl());
+        if (update.getOauthProvider() != null) user.setOauthProvider(update.getOauthProvider());
+        if (update.getOauthId() != null) user.setOauthId(update.getOauthId());
+        if (update.getSettings() != null) user.setSettings(update.getSettings());
+        if (update.getRole() != null) user.setRole(update.getRole());
+        if (update.getEmailVerifiedAt() != null) user.setEmailVerifiedAt(update.getEmailVerifiedAt());
+        if (update.getDeletedAt() != null) user.setDeletedAt(update.getDeletedAt());
         return userRepository.save(user);
     }
 
