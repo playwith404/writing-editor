@@ -10,7 +10,7 @@ services:
     ports:
       - "3100:3000"
     env_file:
-      - .env
+      - ../.env
     restart: unless-stopped
 
   core-api:
@@ -22,9 +22,9 @@ services:
     ports:
       - "8100:3000"
     volumes:
-      - ./uploads:/app/uploads
+      - ../uploads:/app/uploads
     env_file:
-      - .env
+      - ../.env
     environment:
       - SERVICE_NAME=core-api
     extra_hosts:
@@ -42,7 +42,7 @@ services:
     ports:
       - "8102:3000"
     env_file:
-      - .env
+      - ../.env
     environment:
       - SERVICE_NAME=sync-service
     extra_hosts:
@@ -60,7 +60,7 @@ services:
     ports:
       - "8101:8000"
     env_file:
-      - .env
+      - ../.env
     environment:
       - SERVICE_NAME=ai-service
     depends_on:
