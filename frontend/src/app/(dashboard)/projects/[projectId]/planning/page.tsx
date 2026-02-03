@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RelationshipDiagram } from "@/components/planning/relationship-diagram"
 
 export default function PlanningPage() {
   const params = useParams<{ projectId: string }>()
@@ -578,6 +579,24 @@ function RelationshipsTab({ projectId }: { projectId: string }) {
   })
   const relationships = useMemo(() => (relQuery.data ?? []) as any[], [relQuery.data])
 
+  const diagramCharacters = useMemo(() => {
+    return characters.map((c) => ({
+      id: String(c.id),
+      name: String(c.name ?? ""),
+      role: c.role ?? null,
+    }))
+  }, [characters])
+
+  const diagramRelationships = useMemo(() => {
+    return relationships.map((r) => ({
+      id: String(r.id),
+      characterAId: String(r.characterAId),
+      characterBId: String(r.characterBId),
+      relationType: r.relationType ?? null,
+      isBidirectional: r.isBidirectional ?? null,
+    }))
+  }, [relationships])
+
   const [aId, setAId] = useState("")
   const [bId, setBId] = useState("")
   const [relationType, setRelationType] = useState("")
@@ -624,93 +643,112 @@ function RelationshipsTab({ projectId }: { projectId: string }) {
   }, [characters])
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">관계 추가</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">인물 A</div>
-            <select
-              className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              value={aId}
-              onChange={(e) => setAId(e.target.value)}
-            >
-              <option value="">선택</option>
-              {characters.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">인물 B</div>
-            <select
-              className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              value={bId}
-              onChange={(e) => setBId(e.target.value)}
-            >
-              <option value="">선택</option>
-              {characters.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">관계 유형</div>
-            <Input value={relationType} onChange={(e) => setRelationType(e.target.value)} placeholder="예) 연인, 적대, 가족" />
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">설명(선택)</div>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="관계의 배경/맥락"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={bidirectional} onChange={(e) => setBidirectional(e.target.checked)} />
-            양방향 관계
-          </label>
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          <Button disabled={createMutation.isPending} onClick={() => createMutation.mutate()}>
-            {createMutation.isPending ? "생성 중..." : "추가"}
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <Tabs defaultValue="diagram">
+        <TabsList>
+          <TabsTrigger value="diagram">드래그 관계도</TabsTrigger>
+          <TabsTrigger value="manage">관계 관리</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">관계 목록</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {relQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-          {!relQuery.isLoading && relationships.length === 0 && (
-            <div className="text-sm text-muted-foreground">아직 등록된 관계가 없습니다.</div>
-          )}
-          {relationships.map((r) => (
-            <div key={r.id} className="rounded-md border p-3 text-sm flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-medium truncate">
-                  {nameById.get(String(r.characterAId)) || "?"} ↔ {nameById.get(String(r.characterBId)) || "?"}
+        <TabsContent value="diagram">
+          <RelationshipDiagram
+            projectId={projectId}
+            characters={diagramCharacters}
+            relationships={diagramRelationships}
+          />
+        </TabsContent>
+
+        <TabsContent value="manage">
+          <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">관계 추가</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">인물 A</div>
+                  <select
+                    className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+                    value={aId}
+                    onChange={(e) => setAId(e.target.value)}
+                  >
+                    <option value="">선택</option>
+                    {characters.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {r.relationType || "유형 없음"} {r.isBidirectional ? "" : "(단방향)"}
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">인물 B</div>
+                  <select
+                    className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+                    value={bId}
+                    onChange={(e) => setBId(e.target.value)}
+                  >
+                    <option value="">선택</option>
+                    {characters.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                {r.description && <div className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{r.description}</div>}
-              </div>
-              <Button size="sm" variant="ghost" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(String(r.id))}>
-                삭제
-              </Button>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">관계 유형</div>
+                  <Input value={relationType} onChange={(e) => setRelationType(e.target.value)} placeholder="예) 연인, 적대, 가족" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">설명(선택)</div>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="관계의 배경/맥락"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={bidirectional} onChange={(e) => setBidirectional(e.target.checked)} />
+                  양방향 관계
+                </label>
+                {error && <div className="text-sm text-red-600">{error}</div>}
+                <Button disabled={createMutation.isPending} onClick={() => createMutation.mutate()}>
+                  {createMutation.isPending ? "생성 중..." : "추가"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">관계 목록</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {relQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
+                {!relQuery.isLoading && relationships.length === 0 && (
+                  <div className="text-sm text-muted-foreground">아직 등록된 관계가 없습니다.</div>
+                )}
+                {relationships.map((r) => (
+                  <div key={r.id} className="rounded-md border p-3 text-sm flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {nameById.get(String(r.characterAId)) || "?"} ↔ {nameById.get(String(r.characterBId)) || "?"}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {r.relationType || "유형 없음"} {r.isBidirectional ? "" : "(단방향)"}
+                      </div>
+                      {r.description && <div className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{r.description}</div>}
+                    </div>
+                    <Button size="sm" variant="ghost" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(String(r.id))}>
+                      삭제
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

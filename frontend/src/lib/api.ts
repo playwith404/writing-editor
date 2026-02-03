@@ -215,6 +215,8 @@ export const api = {
     list: () => apiFetch<any[]>("/projects"),
     get: (id: string) => apiFetch<any>(`/projects/${id}`),
     create: (dto: { title: string; description?: string; genre?: string }) => apiFetch<any>("/projects", { method: "POST", body: dto }),
+    update: (id: string, dto: { title?: string; description?: string; genre?: string; coverUrl?: string; isPublic?: boolean; settings?: any }) =>
+      apiFetch<any>(`/projects/${id}`, { method: "PATCH", body: dto }),
   },
   documents: {
     list: (projectId: string) => apiFetch<any[]>(`/documents?projectId=${encodeURIComponent(projectId)}`),
