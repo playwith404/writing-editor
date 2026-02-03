@@ -9,7 +9,10 @@ This repo contains frontend + backend services and a CI/CD pipeline that deploys
 - `frontend`: Next.js frontend
 
 ## CI/CD
-GitHub Actions workflow: `.github/workflows/deploy-dev.yml`
+GitHub Actions workflows:
+- `.github/workflows/deploy-frontend-dev.yml` (auto on `dev` changes)
+- `.github/workflows/deploy-backend-dev.yml` (auto on `dev` changes)
+- `.github/workflows/deploy-dev.yml` (manual full deploy)
 
 Required GitHub Secrets:
 - `SSH_HOST`
@@ -18,9 +21,9 @@ Required GitHub Secrets:
 - `SSH_PORT`
 - `SSH_KNOWN_HOSTS` (optional)
 
-The workflow connects to `/srv/cowrite`, pulls the `dev` branch, and runs:
+Workflows connect to `/srv/cowrite`, pull the `dev` branch, and run `docker compose` (or `docker-compose`) with:
 ```
-docker compose -f deploy/docker-compose.dev.yml up -d --build
+docker compose -p cowrite -f deploy/docker-compose.dev.yml up -d --build
 ```
 
 ## Local dev

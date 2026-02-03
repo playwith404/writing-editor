@@ -1,19 +1,32 @@
-name: Deploy (dev - full)
+name: Deploy (dev - frontend)
 
 on:
+  push:
+    branches:
+      - dev
+    paths:
+      - "frontend/**"
+      - "deploy/docker-compose.dev.yml"
+      - "deploy/nginx/**"
+      - ".github/workflows/deploy-frontend-dev.yml"
   workflow_dispatch:
+
+concurrency:
+  group: cowrite-deploy-dev
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Deploy frontend via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 30m
           script: |
             set -e
             REPO_DIR=/srv/cowrite
@@ -47,6 +60,6 @@ jobs:
               echo "Missing docker compose on server" >&2
               exit 1
             fi
-            # Ensure we can redeploy even if containers were started outside compose
-            docker rm -f cowrite-frontend cowrite-backend cowrite-sync-service cowrite-ai-service cowrite-redis 2>/dev/null || true
-            $COMPOSE_CMD -p cowrite -f deploy/docker-compose.dev.yml up -d --build --remove-orphans
+            docker rm -f cowrite-frontend 2>/dev/null || true
+            $COMPOSE_CMD -p cowrite -f deploy/docker-compose.dev.yml up -d --build frontend
+
