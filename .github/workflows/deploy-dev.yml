@@ -34,7 +34,9 @@ jobs:
             cd "$REPO_DIR"
             git fetch origin dev
             git checkout dev
-            git pull --ff-only origin dev
+            # 서버에서 임시 수정이 남아있어도 배포가 항상 성공하도록 강제 동기화
+            git reset --hard origin/dev
+            git clean -fd
             if [ ! -f .env ]; then
               echo "Missing /srv/cowrite/.env" >&2
               exit 1
