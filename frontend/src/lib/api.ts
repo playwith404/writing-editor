@@ -223,6 +223,29 @@ export const api = {
     get: (id: string) => apiFetch<any>(`/documents/${id}`),
     create: (dto: any) => apiFetch<any>("/documents", { method: "POST", body: dto }),
     update: (id: string, dto: any) => apiFetch<any>(`/documents/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/documents/${id}`, { method: "DELETE" }),
+  },
+  documentVersions: {
+    list: (documentId: string) => apiFetch<any[]>(`/document-versions?documentId=${encodeURIComponent(documentId)}`),
+    create: (dto: any) => apiFetch<any>("/document-versions", { method: "POST", body: dto }),
+    restore: (id: string) => apiFetch<any>(`/document-versions/${id}/restore`, { method: "POST" }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/document-versions/${id}`, { method: "DELETE" }),
+  },
+  writingGoals: {
+    list: (projectId: string) => apiFetch<any[]>(`/writing-goals?projectId=${encodeURIComponent(projectId)}`),
+    create: (dto: any) => apiFetch<any>("/writing-goals", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/writing-goals/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/writing-goals/${id}`, { method: "DELETE" }),
+  },
+  characterStats: {
+    templates: () => apiFetch<any[]>("/character-stats/templates"),
+    calculate: (dto: { templateType?: string; stats?: any }) => apiFetch<any>("/character-stats/calculate", { method: "POST", body: dto }),
+    list: (characterId: string) => apiFetch<any[]>(`/character-stats?characterId=${encodeURIComponent(characterId)}`),
+    progression: (characterId: string) => apiFetch<any[]>(`/character-stats/progression?characterId=${encodeURIComponent(characterId)}`),
+    consistency: (characterId: string) => apiFetch<any[]>(`/character-stats/consistency?characterId=${encodeURIComponent(characterId)}`),
+    create: (dto: any) => apiFetch<any>("/character-stats", { method: "POST", body: dto }),
+    update: (id: string, dto: any) => apiFetch<any>(`/character-stats/${id}`, { method: "PATCH", body: dto }),
+    delete: (id: string) => apiFetch<{ success: true }>(`/character-stats/${id}`, { method: "DELETE" }),
   },
   characters: {
     list: (projectId: string) => apiFetch<any[]>(`/characters?projectId=${encodeURIComponent(projectId)}`),
@@ -296,6 +319,9 @@ export const api = {
   ai: {
     quota: () => apiFetch<{ limit: number | null; used: number; remaining: number | null }>("/ai/quota"),
     complete: (dto: any) => apiFetch<{ content: string }>("/ai/complete", { method: "POST", body: dto }),
+    settingsSearch: (dto: any) => apiFetch<any>("/ai/settings-search", { method: "POST", body: dto }),
+    styleConvert: (dto: any) => apiFetch<{ content: string }>("/ai/style/convert", { method: "POST", body: dto }),
+    characterSimulate: (dto: any) => apiFetch<{ content: string }>("/ai/character/simulate", { method: "POST", body: dto }),
   },
   generators: {
     translate: (dto: any) => apiFetch<any>("/translations/generate", { method: "POST", body: dto }),

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Users, Globe, Bot, BarChart2 } from "lucide-react"
@@ -332,18 +332,83 @@ function AIPanel({
         },
     })
 
-    const [voice, setVoice] = useState("")
-    const [ttsResult, setTtsResult] = useState<string>("")
-    const [ttsError, setTtsError] = useState<string | null>(null)
-    const tts = useMutation({
-        mutationFn: async () => api.generators.tts({ documentId, voice: voice || undefined, provider, model: model || undefined }),
+    const [settingsQuery, setSettingsQuery] = useState("")
+    const [settingsResult, setSettingsResult] = useState<string>("")
+    const [settingsHits, setSettingsHits] = useState<any[]>([])
+    const [settingsError, setSettingsError] = useState<string | null>(null)
+    const settingsSearch = useMutation({
+        mutationFn: async () => api.ai.settingsSearch({ projectId, query: settingsQuery, provider, model: model || undefined }),
         onSuccess: (res: any) => {
-            setTtsResult(res?.script || "")
-            setTtsError(null)
+            const content = res?.result?.content
+            if (typeof content === "string") setSettingsResult(content)
+            else if (res?.result) setSettingsResult(JSON.stringify(res.result, null, 2))
+            else setSettingsResult("")
+            setSettingsHits(Array.isArray(res?.hits) ? res.hits : [])
+            setSettingsError(null)
         },
         onError: (err) => {
-            if (err instanceof ApiError) setTtsError(err.message)
-            else setTtsError("TTS 생성에 실패했습니다.")
+            if (err instanceof ApiError) setSettingsError(err.message)
+            else setSettingsError("설정 검색에 실패했습니다.")
+        },
+    })
+
+    const [style, setStyle] = useState("로판풍")
+    const [styleText, setStyleText] = useState("")
+    const [styleResult, setStyleResult] = useState<string>("")
+    const [styleError, setStyleError] = useState<string | null>(null)
+    const styleConvert = useMutation({
+        mutationFn: async () => api.ai.styleConvert({ text: styleText, style, provider, model: model || undefined }),
+        onSuccess: (res) => {
+            setStyleResult(res?.content || "")
+            setStyleError(null)
+        },
+        onError: (err) => {
+            if (err instanceof ApiError) setStyleError(err.message)
+            else setStyleError("문체 변환에 실패했습니다.")
+        },
+    })
+
+    const charactersQuery = useQuery({
+        queryKey: ["characters", projectId],
+        queryFn: () => api.characters.list(projectId),
+    })
+    const characters = useMemo(() => (charactersQuery.data ?? []) as any[], [charactersQuery.data])
+    const [simCharacterId, setSimCharacterId] = useState("")
+    const [simCharacter, setSimCharacter] = useState("")
+    const [simScenario, setSimScenario] = useState("")
+    const [simResult, setSimResult] = useState<string>("")
+    const [simError, setSimError] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (!simCharacterId) return
+        const c = characters.find((x) => String(x.id) === String(simCharacterId))
+        if (!c) return
+        setSimCharacter(
+            JSON.stringify(
+                {
+                    name: c.name,
+                    role: c.role,
+                    profile: c.profile,
+                    appearance: c.appearance,
+                    personality: c.personality,
+                    backstory: c.backstory,
+                    speechSample: c.speechSample,
+                },
+                null,
+                2
+            )
+        )
+    }, [simCharacterId, characters])
+
+    const simulate = useMutation({
+        mutationFn: async () => api.ai.characterSimulate({ character: simCharacter, scenario: simScenario, provider, model: model || undefined }),
+        onSuccess: (res) => {
+            setSimResult(res?.content || "")
+            setSimError(null)
+        },
+        onError: (err) => {
+            if (err instanceof ApiError) setSimError(err.message)
+            else setSimError("시뮬레이션에 실패했습니다.")
         },
     })
 
@@ -376,6 +441,44 @@ function AIPanel({
             <Separator />
 
             <div className="space-y-2">
+                <div className="font-semibold text-sm">설정 검색</div>
+                <Input value={settingsQuery} onChange={(e) => setSettingsQuery(e.target.value)} placeholder="예) 주인공이 처음 검을 얻은 장면" />
+                {settingsError && <div className="text-sm text-red-600">{settingsError}</div>}
+                <div className="flex gap-2">
+                    <Button disabled={!settingsQuery.trim() || settingsSearch.isPending} onClick={() => settingsSearch.mutate()}>
+                        {settingsSearch.isPending ? "검색 중..." : "검색"}
+                    </Button>
+                    <Button variant="secondary" disabled={!settingsResult.trim()} onClick={() => onInsertText?.(settingsResult)}>
+                        에디터에 삽입
+                    </Button>
+                </div>
+                {settingsResult && (
+                    <pre className="whitespace-pre-wrap text-sm bg-muted/30 rounded border p-3">{settingsResult}</pre>
+                )}
+                {settingsHits.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">검색 결과(상위 {Math.min(settingsHits.length, 8)}개)</div>
+                        <div className="space-y-2">
+                            {settingsHits.slice(0, 8).map((h: any, idx: number) => (
+                                <div key={`${h.id ?? idx}-${h.index ?? ""}`} className="rounded-md border p-3 text-sm">
+                                    <div className="font-medium">
+                                        [{String(h.index || "item")}] {String(h.source?.title || h.source?.name || h.id || "항목")}
+                                    </div>
+                                    {h.source?.excerpt && (
+                                        <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
+                                            {String(h.source.excerpt)}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
                 <div className="font-semibold text-sm">이어쓰기 / 제안</div>
                 <textarea
                     value={prompt}
@@ -398,6 +501,94 @@ function AIPanel({
                 </div>
                 {completeResult && (
                     <pre className="whitespace-pre-wrap text-sm bg-muted/30 rounded border p-3">{completeResult}</pre>
+                )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+                <div className="font-semibold text-sm">문체 변환</div>
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">스타일</div>
+                        <select
+                            value={style}
+                            onChange={(e) => setStyle(e.target.value)}
+                            className="w-full h-9 rounded-md border bg-background px-2 text-sm"
+                        >
+                            <option value="로판풍">로판풍</option>
+                            <option value="무협풍">무협풍</option>
+                            <option value="현대풍">현대풍</option>
+                            <option value="간결하게">간결하게</option>
+                            <option value="만연체">만연체</option>
+                            <option value="1인칭">1인칭</option>
+                            <option value="3인칭">3인칭</option>
+                        </select>
+                    </div>
+                </div>
+                <textarea
+                    value={styleText}
+                    onChange={(e) => setStyleText(e.target.value)}
+                    placeholder="변환할 텍스트를 입력하세요."
+                    className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {styleError && <div className="text-sm text-red-600">{styleError}</div>}
+                <div className="flex gap-2">
+                    <Button disabled={!styleText.trim() || styleConvert.isPending} onClick={() => styleConvert.mutate()}>
+                        {styleConvert.isPending ? "변환 중..." : "변환"}
+                    </Button>
+                    <Button variant="secondary" disabled={!styleResult.trim()} onClick={() => onInsertText?.(styleResult)}>
+                        에디터에 삽입
+                    </Button>
+                </div>
+                {styleResult && (
+                    <pre className="whitespace-pre-wrap text-sm bg-muted/30 rounded border p-3">{styleResult}</pre>
+                )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+                <div className="font-semibold text-sm">캐릭터 시뮬레이션</div>
+                <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">캐릭터(선택)</div>
+                    <select
+                        value={simCharacterId}
+                        onChange={(e) => setSimCharacterId(e.target.value)}
+                        className="w-full h-9 rounded-md border bg-background px-2 text-sm"
+                    >
+                        <option value="">직접 입력</option>
+                        {characters.map((c) => (
+                            <option key={c.id} value={String(c.id)}>
+                                {String(c.name || "이름 없음")}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <textarea
+                    value={simCharacter}
+                    onChange={(e) => setSimCharacter(e.target.value)}
+                    placeholder="캐릭터 정보를 입력하세요. (예: 성격/말투/배경)"
+                    className="w-full min-h-24 font-mono rounded-md border bg-background px-3 py-2 text-xs shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                    spellCheck={false}
+                />
+                <textarea
+                    value={simScenario}
+                    onChange={(e) => setSimScenario(e.target.value)}
+                    placeholder="상황/질문을 입력하세요."
+                    className="w-full min-h-20 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {simError && <div className="text-sm text-red-600">{simError}</div>}
+                <div className="flex gap-2">
+                    <Button disabled={!simCharacter.trim() || !simScenario.trim() || simulate.isPending} onClick={() => simulate.mutate()}>
+                        {simulate.isPending ? "생성 중..." : "시뮬레이션"}
+                    </Button>
+                    <Button variant="secondary" disabled={!simResult.trim()} onClick={() => onInsertText?.(simResult)}>
+                        에디터에 삽입
+                    </Button>
+                </div>
+                {simResult && (
+                    <pre className="whitespace-pre-wrap text-sm bg-muted/30 rounded border p-3">{simResult}</pre>
                 )}
             </div>
 
@@ -465,26 +656,6 @@ function AIPanel({
                 {!documentId && <div className="text-xs text-muted-foreground">문서를 선택하면 예측을 생성할 수 있어요.</div>}
                 {predictResult && (
                     <pre className="whitespace-pre-wrap text-xs bg-muted/30 rounded border p-3">{predictResult}</pre>
-                )}
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-                <div className="font-semibold text-sm">오디오북(TTS 스크립트)</div>
-                <Input value={voice} onChange={(e) => setVoice(e.target.value)} placeholder="음성(선택)" />
-                {ttsError && <div className="text-sm text-red-600">{ttsError}</div>}
-                <div className="flex gap-2">
-                    <Button disabled={!documentId || tts.isPending} onClick={() => tts.mutate()}>
-                        {tts.isPending ? "생성 중..." : "TTS 생성"}
-                    </Button>
-                    <Button variant="secondary" disabled={!ttsResult.trim()} onClick={() => onInsertText?.(ttsResult)}>
-                        에디터에 삽입
-                    </Button>
-                </div>
-                {!documentId && <div className="text-xs text-muted-foreground">문서를 선택하면 TTS 스크립트를 생성할 수 있어요.</div>}
-                {ttsResult && (
-                    <pre className="whitespace-pre-wrap text-sm bg-muted/30 rounded border p-3">{ttsResult}</pre>
                 )}
             </div>
         </div>

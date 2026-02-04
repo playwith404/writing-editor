@@ -1,6 +1,7 @@
 package store.pjcloud.cowrite.core.service;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -50,9 +51,14 @@ public class DocumentsService {
         if (userId == null) return List.of();
         List<UUID> projectIds = projectAccessService.filterAccessibleProjectIds(userId, projectId);
         if (projectIds.isEmpty()) return List.of();
-        return documentRepository.findAll().stream()
-            .filter(d -> d.getProjectId() != null && projectIds.contains(d.getProjectId()))
-            .toList();
+        if (projectId != null) {
+            return documentRepository.findByProjectIdOrderByOrderIndexAscCreatedAtAsc(projectId);
+        }
+        List<Document> result = new ArrayList<>();
+        for (UUID pid : projectIds) {
+            result.addAll(documentRepository.findByProjectIdOrderByOrderIndexAscCreatedAtAsc(pid));
+        }
+        return result;
     }
 
     public Document findOneForUser(UUID userId, UUID id) {

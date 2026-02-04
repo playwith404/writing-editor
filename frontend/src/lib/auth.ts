@@ -1,10 +1,14 @@
 const ACCESS_TOKEN_KEY = "cowrite.accessToken"
 const REFRESH_TOKEN_KEY = "cowrite.refreshToken"
-const AUTH_EVENT_NAME = "cowrite.auth"
+const AUTH_EVENT = "cowrite.auth"
 
 function dispatchAuthEvent() {
   if (typeof window === "undefined") return
-  window.dispatchEvent(new Event(AUTH_EVENT_NAME))
+  try {
+    window.dispatchEvent(new Event(AUTH_EVENT))
+  } catch {
+    // ignore
+  }
 }
 
 export function getAccessToken(): string | null {
