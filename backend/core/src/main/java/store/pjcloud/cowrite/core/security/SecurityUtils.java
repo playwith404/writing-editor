@@ -1,6 +1,7 @@
 package store.pjcloud.cowrite.core.security;
 
 import java.util.UUID;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -10,9 +11,13 @@ public final class SecurityUtils {
     public static UUID requireUserId() {
         String userId = getUserId();
         if (userId == null) {
-            throw new IllegalStateException("로그인이 필요합니다.");
+            throw new BadCredentialsException("로그인이 필요합니다.");
         }
-        return UUID.fromString(userId);
+        try {
+            return UUID.fromString(userId);
+        } catch (IllegalArgumentException ex) {
+            throw new BadCredentialsException("로그인이 필요합니다.");
+        }
     }
 
     public static String getUserId() {
@@ -23,6 +28,7 @@ public final class SecurityUtils {
             return user.userId();
         }
         if (principal instanceof String str) {
+            if ("anonymousUser".equals(str)) return null;
             return str;
         }
         return null;
