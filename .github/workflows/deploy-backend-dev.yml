@@ -1,4 +1,4 @@
-name: Deploy (dev - backend)
+name: Deploy (dev - backend image)
 
 on:
   push:
@@ -12,14 +12,42 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: cowrite-deploy-dev
+  group: cowrite-deploy-dev-backend
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/writing-editor-backend
+      IMAGE_TAG: dev-${{ github.sha }}
+      IMAGE_LATEST_TAG: dev-latest
     steps:
-      - name: Deploy backend via SSH
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_LATEST_TAG }}
+
+      - name: Deploy backend via SSH (pull and run only)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -29,38 +57,31 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
-            REPO_DIR=/srv/cowrite
-            ENV_BACKUP=""
-            if [ -d "$REPO_DIR" ] && [ ! -d "$REPO_DIR/.git" ]; then
-              BACKUP_DIR="${REPO_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
-              mv "$REPO_DIR" "$BACKUP_DIR"
-              if [ -f "$BACKUP_DIR/.env" ]; then
-                ENV_BACKUP="$BACKUP_DIR/.env"
-              fi
-            fi
-            if [ ! -d "$REPO_DIR/.git" ]; then
-              git clone -b dev https://github.com/Krminsung/cowrite.git "$REPO_DIR"
-            fi
-            if [ -n "$ENV_BACKUP" ] && [ ! -f "$REPO_DIR/.env" ]; then
-              cp "$ENV_BACKUP" "$REPO_DIR/.env"
-            fi
-            cd "$REPO_DIR"
-            git fetch origin dev
-            git checkout dev
-            # 서버에서 임시 수정이 남아있어도 배포가 항상 성공하도록 강제 동기화
-            git reset --hard origin/dev
-            git clean -fd
-            if [ ! -f .env ]; then
-              echo "Missing /srv/cowrite/.env" >&2
+
+            IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+            ENV_FILE="/srv/cowrite/.env"
+            UPLOADS_DIR="/srv/cowrite/uploads"
+            NET="cowrite-net"
+
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "Missing $ENV_FILE" >&2
               exit 1
             fi
-            if docker compose version >/dev/null 2>&1; then
-              COMPOSE_CMD="docker compose"
-            elif command -v docker-compose >/dev/null 2>&1; then
-              COMPOSE_CMD="docker-compose"
+
+            mkdir -p "$UPLOADS_DIR"
+            docker network inspect "$NET" >/dev/null 2>&1 || docker network create "$NET"
+
+            if [ -n "${{ secrets.GHCR_USERNAME }}" ] && [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
+              echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
             else
-              echo "Missing docker compose on server" >&2
-              exit 1
+              echo "GHCR credentials not set. Trying anonymous pull."
             fi
+
+            docker pull "$IMAGE"
+            docker pull redis:7-alpine
+
             docker rm -f cowrite-backend cowrite-sync-service cowrite-ai-service cowrite-redis 2>/dev/null || true
-            $COMPOSE_CMD -p cowrite -f deploy/docker-compose.dev.yml up -d --build backend redis
+
+            docker run -d               --name cowrite-redis               --restart unless-stopped               --network "$NET"               --network-alias redis               -p 6879:6379               -v redis_data:/data               redis:7-alpine
+
+            docker run -d               --name cowrite-backend               --restart unless-stopped               --network "$NET"               --env-file "$ENV_FILE"               -e SERVICE_NAME=backend               -e AI_SERVICE_URL=http://127.0.0.1:8000               -e CORE_API_INTERNAL_URL=http://127.0.0.1:3000               --add-host host.docker.internal:host-gateway               -p 8100:3000               -p 8102:3001               -p 8101:8000               -v "$UPLOADS_DIR:/app/uploads"               "$IMAGE"
