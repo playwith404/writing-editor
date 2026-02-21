@@ -59,14 +59,25 @@ jobs:
 
             BACKEND_IMAGE="${{ env.BACKEND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
             FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-            ENV_FILE="/cowrite/.env"
-            UPLOADS_DIR="/cowrite/uploads"
+            ENV_CANDIDATES="/cowrite/.env $HOME/cowrite/.env /srv/cowrite/.env"
+            ENV_FILE=""
             NET="cowrite-net"
 
-            if [ ! -f "$ENV_FILE" ]; then
-              echo "Missing $ENV_FILE" >&2
+            for CANDIDATE in $ENV_CANDIDATES; do
+              if [ -f "$CANDIDATE" ]; then
+                ENV_FILE="$CANDIDATE"
+                break
+              fi
+            done
+
+            if [ -z "$ENV_FILE" ]; then
+              echo "Missing env file. Checked: $ENV_CANDIDATES" >&2
+              echo "whoami=$(whoami) host=$(hostname)" >&2
+              ls -ld /cowrite "$HOME/cowrite" /srv/cowrite 2>/dev/null || true
               exit 1
             fi
+            APP_ROOT="$(dirname "$ENV_FILE")"
+            UPLOADS_DIR="$APP_ROOT/uploads"
 
             mkdir -p "$UPLOADS_DIR"
             docker network inspect "$NET" >/dev/null 2>&1 || docker network create "$NET"

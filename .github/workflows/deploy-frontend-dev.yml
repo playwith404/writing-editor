@@ -59,11 +59,21 @@ jobs:
             set -e
 
             IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-            ENV_FILE="/cowrite/.env"
+            ENV_CANDIDATES="/cowrite/.env $HOME/cowrite/.env /srv/cowrite/.env"
+            ENV_FILE=""
             NET="cowrite-net"
 
-            if [ ! -f "$ENV_FILE" ]; then
-              echo "Missing $ENV_FILE" >&2
+            for CANDIDATE in $ENV_CANDIDATES; do
+              if [ -f "$CANDIDATE" ]; then
+                ENV_FILE="$CANDIDATE"
+                break
+              fi
+            done
+
+            if [ -z "$ENV_FILE" ]; then
+              echo "Missing env file. Checked: $ENV_CANDIDATES" >&2
+              echo "whoami=$(whoami) host=$(hostname)" >&2
+              ls -ld /cowrite "$HOME/cowrite" /srv/cowrite 2>/dev/null || true
               exit 1
             fi
 
