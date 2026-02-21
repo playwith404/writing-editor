@@ -59,7 +59,7 @@ jobs:
             set -e
 
             IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-            ENV_FILE="/srv/cowrite/.env"
+            ENV_FILE="/cowrite/.env"
             NET="cowrite-net"
 
             if [ ! -f "$ENV_FILE" ]; then

@@ -59,8 +59,8 @@ jobs:
 
             BACKEND_IMAGE="${{ env.BACKEND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
             FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-            ENV_FILE="/srv/cowrite/.env"
-            UPLOADS_DIR="/srv/cowrite/uploads"
+            ENV_FILE="/cowrite/.env"
+            UPLOADS_DIR="/cowrite/uploads"
             NET="cowrite-net"
 
             if [ ! -f "$ENV_FILE" ]; then
