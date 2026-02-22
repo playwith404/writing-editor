@@ -16,7 +16,7 @@ from app.services.providers import (
     resolve_model,
 )
 
-logger = logging.getLogger("cowrite.ai")
+logger = logging.getLogger("gleey.ai")
 
 FeatureName = Literal[
     "complete",
@@ -31,7 +31,7 @@ FeatureName = Literal[
     "transcribe",
 ]
 
-app = FastAPI(title="Cowrite AI Service")
+app = FastAPI(title="Gleey AI Service")
 
 
 class HealthResponse(BaseModel):

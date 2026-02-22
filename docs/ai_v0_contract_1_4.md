@@ -2,7 +2,7 @@
 
 버전: `v0`
 작성일: `2026-02-21`
-적용 범위: 설정 검색, 이어쓰기, 문체 변환, 캐릭터 시뮬레이션
+적용 범위: 이어쓰기, 문체 변환
 
 ## 1) 계약 원칙
 1. 프론트는 Core API만 호출한다.
@@ -50,48 +50,9 @@
 }
 ```
 
-## 4) Endpoint Contracts (1~4)
+## 4) Endpoint Contracts
 
-### 4.1 설정 검색
-
-Core API:
-- `POST /ai/settings-search`
-
-Request:
-```json
-{
-  "projectId": "uuid",
-  "query": "주인공이 처음 무기를 얻은 장면",
-  "provider": "gemini",
-  "model": "gemini-3-flash-preview"
-}
-```
-
-Response (Core):
-```json
-{
-  "result": {
-    "content": "...",
-    "request_id": "uuid",
-    "mode": "mock",
-    "provider": "gemini",
-    "model": "gemini-3-flash-preview"
-  },
-  "hits": [
-    {
-      "index": "world_settings",
-      "id": "...",
-      "score": 1.23,
-      "source": {}
-    }
-  ]
-}
-```
-
-AI Service 내부 프록시:
-- `POST /ai/search`
-
-### 4.2 이어쓰기
+### 4.1 이어쓰기
 
 Core API:
 - `POST /ai/complete`
@@ -116,7 +77,7 @@ Response:
 }
 ```
 
-### 4.3 문체 변환
+### 4.2 문체 변환
 
 Core API:
 - `POST /ai/style/convert`
@@ -126,23 +87,6 @@ Request:
 {
   "text": "원문",
   "style": "로판풍",
-  "provider": "gemini",
-  "model": "gemini-3-flash-preview"
-}
-```
-
-Response: 공통 Success 규격 동일
-
-### 4.4 캐릭터 시뮬레이션
-
-Core API:
-- `POST /ai/character/simulate`
-
-Request:
-```json
-{
-  "character": "이름/성격/말투/배경",
-  "scenario": "갈등 장면에서 반응",
   "provider": "gemini",
   "model": "gemini-3-flash-preview"
 }
@@ -172,6 +116,6 @@ Response: 공통 Success 규격 동일
 
 ## 7) 구현 상태 (2026-02-21)
 
-- 1~4 endpoint 경로는 이미 연결되어 있음
+- 1~2 endpoint 경로는 이미 연결되어 있음
 - 본 계약은 현재 코드 응답 형태(`content` 유지)에 맞춰 작성됨
 - 추후 v1에서 구조화 응답(JSON schema strict mode)로 확장 예정

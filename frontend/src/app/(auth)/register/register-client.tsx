@@ -51,7 +51,7 @@ export default function RegisterClient() {
     <Card>
       <CardHeader>
         <CardTitle>회원가입</CardTitle>
-        <CardDescription>새 계정을 만들고 Cowrite를 시작하세요.</CardDescription>
+        <CardDescription>새 계정을 만들고 Gleey를 시작하세요.</CardDescription>
       </CardHeader>
       <CardContent>
         {sent ? (

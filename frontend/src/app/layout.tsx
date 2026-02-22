@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cowrite",
+  title: "Gleey",
   description: "AI 기반 집필 어시스턴트",
 };
 

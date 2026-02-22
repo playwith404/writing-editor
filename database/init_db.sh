@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_NAME="${DB_NAME:-cowrite}"
-DB_USER="${DB_USER:-cowrite}"
+DB_NAME="${DB_NAME:-gleey}"
+DB_USER="${DB_USER:-gleey}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 SCHEMA_FILE_DEFAULT="$(cd "$(dirname "$0")" && pwd)/schema.sql"
 SCHEMA_FILE="${SCHEMA_FILE:-$SCHEMA_FILE_DEFAULT}"
@@ -35,7 +35,7 @@ if [ "$APPLY_SCHEMA" = "1" ] && [ -f "$SCHEMA_FILE" ]; then
   schema_path="$SCHEMA_FILE"
   tmp_schema=""
   if [ "$USE_SUDO" = "1" ]; then
-    tmp_schema=$(mktemp /tmp/cowrite-schema-XXXX.sql)
+    tmp_schema=$(mktemp /tmp/gleey-schema-XXXX.sql)
     cp "$SCHEMA_FILE" "$tmp_schema"
     chmod 644 "$tmp_schema"
     schema_path="$tmp_schema"

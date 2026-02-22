@@ -1,4 +1,4 @@
--- Cowrite schema (PostgreSQL)
+-- Gleey schema (PostgreSQL)
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Users

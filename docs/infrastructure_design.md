@@ -1,4 +1,4 @@
-# ☁️ Cowrite 인프라/배포 설계
+# ☁️ Gleey 인프라/배포 설계
 
 > Docker Compose 기반 로컬/서버 배포 환경을 정의합니다.
 
@@ -68,16 +68,16 @@ sudo systemctl enable postgresql
 sudo -u postgres psql
 
 -- 사용자 생성
-CREATE USER cowrite WITH PASSWORD 'your_secure_password';
+CREATE USER gleey WITH PASSWORD 'your_secure_password';
 
 -- 데이터베이스 생성
-CREATE DATABASE cowrite OWNER cowrite;
+CREATE DATABASE gleey OWNER gleey;
 
 -- 권한 부여
-GRANT ALL PRIVILEGES ON DATABASE cowrite TO cowrite;
+GRANT ALL PRIVILEGES ON DATABASE gleey TO gleey;
 
 -- UUID 확장 활성화
-\c cowrite
+\c gleey
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 ```
 
@@ -88,8 +88,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 listen_addresses = 'localhost'  # 로컬만 허용
 
 # /etc/postgresql/16/main/pg_hba.conf
-local   all   cowrite   md5
-host    all   cowrite   127.0.0.1/32   md5
+local   all   gleey   md5
+host    all   gleey   127.0.0.1/32   md5
 ```
 
 ---
@@ -107,7 +107,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: cowrite-frontend
+    container_name: gleey-frontend
     ports:
       - "3100:3000"
     environment:
@@ -117,22 +117,22 @@ services:
       - core-api
     restart: unless-stopped
     networks:
-      - cowrite-network
+      - gleey-network
 
   # 코어 API (Spring Boot)
   core-api:
     build:
       context: ./backend/core
       dockerfile: Dockerfile
-    container_name: cowrite-backend
+    container_name: gleey-backend
     ports:
       - "8100:3000"
     environment:
       - DB_HOST=host.docker.internal
       - DB_PORT=5432
-      - DB_USER=cowrite
+      - DB_USER=gleey
       - DB_PASSWORD=your_secure_password
-      - DB_NAME=cowrite
+      - DB_NAME=gleey
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=15m
       - JWT_REFRESH_EXPIRES_IN=7d
@@ -143,14 +143,14 @@ services:
       - redis
     restart: unless-stopped
     networks:
-      - cowrite-network
+      - gleey-network
 
   # AI 서비스 (FastAPI)
   ai-service:
     build:
       context: ./backend/ai
       dockerfile: Dockerfile
-    container_name: cowrite-ai
+    container_name: gleey-ai
     ports:
       - "8101:8000"
     environment:
@@ -161,14 +161,14 @@ services:
       - redis
     restart: unless-stopped
     networks:
-      - cowrite-network
+      - gleey-network
 
   # 실시간 동기화 서비스
   sync-service:
     build:
       context: ./backend/sync
       dockerfile: Dockerfile
-    container_name: cowrite-sync
+    container_name: gleey-sync
     ports:
       - "8102:3000"
     environment:
@@ -179,12 +179,12 @@ services:
       - redis
     restart: unless-stopped
     networks:
-      - cowrite-network
+      - gleey-network
 
   # Redis (캐시/세션)
   redis:
     image: redis:7-alpine
-    container_name: cowrite-redis
+    container_name: gleey-redis
     ports:
       - "6879:6379"
     volumes:
@@ -192,12 +192,12 @@ services:
     command: redis-server --appendonly yes
     restart: unless-stopped
     networks:
-      - cowrite-network
+      - gleey-network
 
   # Nginx (리버스 프록시)
   nginx:
     image: nginx:alpine
-    container_name: cowrite-nginx
+    container_name: gleey-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -211,13 +211,13 @@ services:
       - sync-service
     restart: unless-stopped
     networks:
-      - cowrite-network
+      - gleey-network
 
 volumes:
   redis_data:
 
 networks:
-  cowrite-network:
+  gleey-network:
     driver: bridge
 ```
 
@@ -312,9 +312,9 @@ http {
 # Database (직접 설치된 PostgreSQL)
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=cowrite
+DB_USER=gleey
 DB_PASSWORD=your_secure_password
-DB_NAME=cowrite
+DB_NAME=gleey
 
 # Redis
 REDIS_URL=redis://localhost:6379

@@ -81,7 +81,7 @@ export default function PublishingPage() {
       const url = URL.createObjectURL(res.blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = res.filename || "cowrite-export"
+      a.download = res.filename || "gleey-export"
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -93,7 +93,7 @@ export default function PublishingPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">퍼블리싱</h2>
-        <p className="text-sm text-muted-foreground">플랫폼 포맷으로 변환해 파일로 내보내고, 이메일로 전달할 수 있습니다.</p>
+        <p className="text-sm text-muted-foreground">파일로 내보내고, 이메일로 전달할 수 있습니다.</p>
       </div>
 
       <Card>
