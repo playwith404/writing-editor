@@ -10,6 +10,9 @@ on:
       - "deploy/nginx/**"
       - ".github/workflows/deploy-frontend-dev.yml"
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - deploy-frontend-dev
 
 concurrency:
   group: gleey-deploy-dev-frontend

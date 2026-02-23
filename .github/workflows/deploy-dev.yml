@@ -2,6 +2,9 @@ name: Deploy (dev - full image)
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - deploy-dev-full
 
 permissions:
   contents: read

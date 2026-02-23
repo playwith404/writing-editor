@@ -10,6 +10,9 @@ on:
       - "deploy/docker-compose.dev.yml"
       - ".github/workflows/deploy-backend-dev.yml"
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - deploy-backend-dev
 
 concurrency:
   group: gleey-deploy-dev-backend
