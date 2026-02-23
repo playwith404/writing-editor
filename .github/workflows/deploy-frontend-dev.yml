@@ -91,4 +91,4 @@ jobs:
             docker pull "$IMAGE"
             docker rm -f gleey-frontend 2>/dev/null || true
 
-            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --network-alias frontend               --env-file "$ENV_FILE"               -p 3100:3000               "$IMAGE"
+            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --network-alias frontend               --env-file "$ENV_FILE"               "$IMAGE"

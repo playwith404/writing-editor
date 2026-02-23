@@ -131,11 +131,11 @@ jobs:
 
             docker rm -f gleey-nginx gleey-frontend gleey-backend gleey-sync-service gleey-ai-service gleey-redis 2>/dev/null || true
 
-            docker run -d               --name gleey-redis               --restart unless-stopped               --network "$NET"               --network-alias redis               -p 6879:6379               -v redis_data:/data               redis:7-alpine
+            docker run -d               --name gleey-redis               --restart unless-stopped               --network "$NET"               --network-alias redis               -v redis_data:/data               redis:7-alpine
 
-            docker run -d               --name gleey-backend               --restart unless-stopped               --network "$NET"               --network-alias backend               --env-file "$ENV_FILE"               -e SERVICE_NAME=backend               -e AI_SERVICE_URL=http://127.0.0.1:8000               -e CORE_API_INTERNAL_URL=http://127.0.0.1:3000               --add-host host.docker.internal:host-gateway               -p 8100:3000               -p 8102:3001               -p 8101:8000               -v "$UPLOADS_DIR:/app/uploads"               "$BACKEND_IMAGE"
+            docker run -d               --name gleey-backend               --restart unless-stopped               --network "$NET"               --network-alias backend               --env-file "$ENV_FILE"               -e SERVICE_NAME=backend               -e AI_SERVICE_URL=http://127.0.0.1:8000               -e CORE_API_INTERNAL_URL=http://127.0.0.1:3000               --add-host host.docker.internal:host-gateway               -v "$UPLOADS_DIR:/app/uploads"               "$BACKEND_IMAGE"
 
-            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --network-alias frontend               --env-file "$ENV_FILE"               -p 3100:3000               "$FRONTEND_IMAGE"
+            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --network-alias frontend               --env-file "$ENV_FILE"               "$FRONTEND_IMAGE"
 
             cp "$NGINX_SOURCE_FILE" "$NGINX_CONF"
 
