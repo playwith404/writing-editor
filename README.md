@@ -218,6 +218,12 @@ GitHub Actions 워크플로우:
 - `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `SSH_PORT`
 - `SSH_KNOWN_HOSTS` (optional)
 
+### Origin SSL Files (Cloudflare Full Strict)
+- Place origin cert/key on server:
+  - `/etc/nginx/ssl/origin.crt`
+  - `/etc/nginx/ssl/origin.key`
+- `deploy-dev.yml` mounts host `/etc/nginx/ssl` to container `/etc/nginx/ssl`.
+
 ---
 
 ## 📚 Documentation
