@@ -241,7 +241,7 @@ function AIPanel({
     documentId?: string
     onInsertText?: (text: string) => void
 }) {
-    const [provider, setProvider] = useState<"openai" | "anthropic" | "gemini">("openai")
+    const provider = "gemini" as const
     const [model, setModel] = useState("")
 
     const quotaQuery = useQuery({
@@ -262,7 +262,9 @@ function AIPanel({
 
     const complete = useMutation({
         mutationFn: async () => {
-            return api.ai.complete({ prompt, provider, model: model || undefined })
+            const payload: any = { prompt, provider, model: model || undefined }
+            if (documentId) payload.documentId = documentId
+            return api.ai.complete(payload)
         },
         onSuccess: (res) => {
             setCompleteResult(res.content || "")
@@ -422,19 +424,13 @@ function AIPanel({
             <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">제공자</div>
-                    <select
-                        value={provider}
-                        onChange={(e) => setProvider(e.target.value as any)}
-                        className="w-full h-9 rounded-md border bg-background px-2 text-sm"
-                    >
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="gemini">Gemini</option>
-                    </select>
+                    <div className="w-full h-9 rounded-md border bg-background px-2 text-sm flex items-center">
+                        Gemini
+                    </div>
                 </div>
                 <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">모델(선택)</div>
-                    <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="예) gpt-4o-mini" />
+                    <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="예) gemini-3-flash-preview" />
                 </div>
             </div>
 

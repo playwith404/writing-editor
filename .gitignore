@@ -11,3 +11,9 @@ __pycache__
 *.pyc
 uploads/
 deploy/uploads/
+
+# Local development-only files
+deploy/docker-compose.local*.yml
+deploy/init-local-*.ps1
+deploy/local-*.ps1
+docs/local_*.md

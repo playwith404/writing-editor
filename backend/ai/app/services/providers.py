@@ -1,7 +1,10 @@
 import os
-from typing import Optional
+from typing import Literal, Optional
 
 import httpx
+
+ProviderName = Literal["gemini"]
+RuntimeMode = Literal["mock", "live"]
 
 
 class ProviderError(Exception):
@@ -13,16 +16,34 @@ def _get_env(name: str, default: Optional[str] = None) -> Optional[str]:
     return value if value else default
 
 
-def _openai_endpoint() -> str:
-    base = _get_env("OPENAI_BASE_URL", "https://api.openai.com/v1")
-    path = _get_env("OPENAI_CHAT_PATH", "chat/completions")
-    return f"{base.rstrip('/')}/{path.lstrip('/')}"
+def _get_timeout() -> float:
+    raw = _get_env("AI_HTTP_TIMEOUT_SECONDS", "60")
+    try:
+        value = float(raw)
+        return value if value > 0 else 60.0
+    except (TypeError, ValueError):
+        return 60.0
 
 
-def _anthropic_endpoint() -> str:
-    base = _get_env("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
-    path = _get_env("ANTHROPIC_MESSAGES_PATH", "messages")
-    return f"{base.rstrip('/')}/{path.lstrip('/')}"
+def get_runtime_mode() -> RuntimeMode:
+    mode = (_get_env("AI_MODE", "mock") or "mock").strip().lower()
+    return "live" if mode == "live" else "mock"
+
+
+def resolve_model(explicit_model: Optional[str]) -> str:
+    if explicit_model and explicit_model.strip():
+        return explicit_model.strip()
+    default_value = "gemini-3-flash-preview"
+    return _get_env("GEMINI_MODEL", default_value) or default_value
+
+
+def require_api_key() -> str:
+    key = _get_env("GEMINI_API_KEY")
+    if not key:
+        raise ProviderError(
+            "GEMINI_API_KEY is not set. Set API key env vars or switch AI_MODE=mock."
+        )
+    return key
 
 
 def _gemini_endpoint(model: str) -> str:
@@ -30,78 +51,44 @@ def _gemini_endpoint(model: str) -> str:
     return f"{base.rstrip('/')}/models/{model}:generateContent"
 
 
-async def call_openai(prompt: str, model: Optional[str] = None) -> str:
-    api_key = _get_env("OPENAI_API_KEY")
-    if not api_key:
-        return f"[임시 응답] {prompt}"
+def _extract_gemini_text(data: dict) -> str:
+    chunks: list[str] = []
+    candidates = data.get("candidates", [])
+    if not isinstance(candidates, list):
+        return ""
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        content = candidate.get("content", {})
+        if not isinstance(content, dict):
+            continue
+        parts = content.get("parts", [])
+        if not isinstance(parts, list):
+            continue
+        for part in parts:
+            if not isinstance(part, dict):
+                continue
+            text = part.get("text")
+            if isinstance(text, str) and text.strip():
+                chunks.append(text.strip())
+    return "\n".join(chunks).strip()
+
+
+async def call_provider(
+    prompt: str,
+    model: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+) -> str:
+    api_key = require_api_key()
+    model_name = resolve_model(model)
 
     payload = {
-        "model": model or _get_env("OPENAI_MODEL", "gpt-4o-mini"),
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.7,
+        "contents": [{"parts": [{"text": prompt}]}],
     }
+    if system_prompt and system_prompt.strip():
+        payload["systemInstruction"] = {"parts": [{"text": system_prompt.strip()}]}
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            _openai_endpoint(),
-            headers={"Authorization": f"Bearer {api_key}"},
-            json=payload,
-        )
-
-    if resp.status_code >= 400:
-        raise ProviderError(f"OpenAI 오류: {resp.text}")
-
-    data = resp.json()
-    return data.get("choices", [{}])[0].get("message", {}).get("content", "")
-
-
-async def call_anthropic(prompt: str, model: Optional[str] = None) -> str:
-    api_key = _get_env("ANTHROPIC_API_KEY")
-    if not api_key:
-        return f"[임시 응답] {prompt}"
-
-    payload = {
-        "model": model or _get_env("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest"),
-        "max_tokens": 1024,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            _anthropic_endpoint(),
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": _get_env("ANTHROPIC_VERSION", "2023-06-01"),
-            },
-            json=payload,
-        )
-
-    if resp.status_code >= 400:
-        raise ProviderError(f"Anthropic 오류: {resp.text}")
-
-    data = resp.json()
-    content = data.get("content", [])
-    if content and isinstance(content, list):
-        return content[0].get("text", "")
-    return data.get("completion", "") or ""
-
-
-async def call_gemini(prompt: str, model: Optional[str] = None) -> str:
-    api_key = _get_env("GEMINI_API_KEY")
-    if not api_key:
-        return f"[임시 응답] {prompt}"
-
-    model_name = model or _get_env("GEMINI_MODEL", "gemini-1.5-pro")
-
-    payload = {
-        "contents": [
-            {"parts": [{"text": prompt}]}
-        ]
-    }
-
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=_get_timeout()) as client:
         resp = await client.post(
             _gemini_endpoint(model_name),
             params={"key": api_key},
@@ -109,12 +96,6 @@ async def call_gemini(prompt: str, model: Optional[str] = None) -> str:
         )
 
     if resp.status_code >= 400:
-        raise ProviderError(f"Gemini 오류: {resp.text}")
+        raise ProviderError(f"Gemini error: {resp.text}")
 
-    data = resp.json()
-    candidates = data.get("candidates", [])
-    if candidates:
-        parts = candidates[0].get("content", {}).get("parts", [])
-        if parts:
-            return parts[0].get("text", "")
-    return ""
+    return _extract_gemini_text(resp.json())

@@ -1,14 +1,15 @@
 # Cowrite Dev Deploy
 
-## 1) 서버 준비
-- Docker + Docker Compose v2 설치
-- `/srv/cowrite` 디렉터리 생성
-- `/srv/cowrite/.env` 준비 (레포 루트 기준)
+## 1) Server Preparation
+- Install Docker + Docker Compose v2
+- Create `/srv/cowrite`
+- Prepare `/srv/cowrite/.env` based on repo-root `.env.example`
 
-## 2) 필수 환경변수 (.env)
-`.env.example`을 레포 루트에 두었고, 동일한 내용을 `/srv/cowrite/.env`로 복사해서 사용합니다.
-```
-# 공통
+## 2) Required Environment Variables (`.env`)
+Use `.env.example` at the repo root and copy the same values into `/srv/cowrite/.env`.
+
+```env
+# Common
 DB_HOST=host.docker.internal
 DB_PORT=5432
 DB_USER=cowrite
@@ -18,21 +19,51 @@ JWT_SECRET=replace_me
 REDIS_URL=redis://redis:6379
 ELASTICSEARCH_NODE=http://host.docker.internal:9200
 
-# Frontend (선택)
+# Frontend (optional)
 NEXT_PUBLIC_API_URL=http://localhost:8100
 NEXT_PUBLIC_WS_URL=ws://localhost:8102/ws
 
-# AI 서비스
-OPENAI_API_KEY=replace_me
-ANTHROPIC_API_KEY=replace_me
+# AI
+AI_MODE=mock
+AI_HTTP_TIMEOUT_SECONDS=60
 GEMINI_API_KEY=replace_me
-OPENAI_MODEL=gpt-4o-mini
-ANTHROPIC_MODEL=claude-3-5-sonnet-latest
-GEMINI_MODEL=gemini-1.5-pro
+GEMINI_MODEL=gemini-3-flash-preview
 ```
 
-## 3) 배포 명령(로컬에서 테스트)
-```
+## 3) Deploy Command (Local Test)
+```bash
 cd /srv/cowrite
 docker compose -f deploy/docker-compose.dev.yml up -d --build
+```
+
+## 4) AI Runtime Quick Start (Gemini)
+You can switch between mock and live modes using only `.env` values.
+
+```env
+# Dev/Test (mock)
+AI_MODE=mock
+GEMINI_MODEL=gemini-3-flash-preview
+
+# Real Gemini call (live)
+# AI_MODE=live
+# GEMINI_API_KEY=your_real_key
+# GEMINI_MODEL=gemini-3-flash-preview
+# AI_HTTP_TIMEOUT_SECONDS=60
+```
+
+Notes:
+- In `AI_MODE=live`, missing keys return a 502 error with a clear reason.
+- In `AI_MODE=mock`, no external LLM call is made and mock responses are returned.
+
+## 5) Local Test Workflow (Docker Desktop)
+```powershell
+Copy-Item .env.example .env
+
+docker compose -f deploy/docker-compose.local-deps.yml --env-file .env up -d
+powershell -ExecutionPolicy Bypass -File deploy/init-local-db.ps1
+
+docker compose -f deploy/docker-compose.dev.yml --env-file .env up -d --build
+Invoke-RestMethod http://localhost:8101/health
+
+powershell -ExecutionPolicy Bypass -File deploy/local-smoke-ai14.ps1
 ```
