@@ -1,6 +1,6 @@
-const ACCESS_TOKEN_KEY = "cowrite.accessToken"
-const REFRESH_TOKEN_KEY = "cowrite.refreshToken"
-const AUTH_EVENT = "cowrite.auth"
+const ACCESS_TOKEN_KEY = "gleey.accessToken"
+const REFRESH_TOKEN_KEY = "gleey.refreshToken"
+const AUTH_EVENT = "gleey.auth"
 
 function dispatchAuthEvent() {
   if (typeof window === "undefined") return

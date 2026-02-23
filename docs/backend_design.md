@@ -1,4 +1,4 @@
-# ⚙️ Cowrite 백엔드 설계
+# ⚙️ Gleey 백엔드 설계
 
 > 마이크로서비스 기반 백엔드 시스템의 상세 설계를 정의합니다.
 
@@ -23,7 +23,7 @@
 ### 2.1 Core API (Spring Boot) - :8100
 
 ```
-src/main/java/store/pjcloud/cowrite/core/
+src/main/java/store/pjcloud/gleey/core/
 ├── controller/
 ├── service/
 ├── repository/
@@ -64,15 +64,12 @@ app/
 ├── main.py
 ├── routers/
 │   ├── completion.py      # 이어쓰기
-│   ├── search.py          # 설정 검색
 │   ├── style.py           # 문체 변환
-│   ├── character.py       # 캐릭터 시뮬
 │   ├── prediction.py      # 독자반응 예측
 │   └── translation.py     # 번역
 ├── services/
 │   ├── openai_service.py
-│   ├── claude_service.py
-│   └── whisper_service.py
+│   └── claude_service.py
 ├── prompts/               # 프롬프트 템플릿
 └── models/                # Pydantic 모델
 ```
@@ -82,12 +79,9 @@ app/
 | Method | Path | 설명 |
 |--------|------|------|
 | POST | `/ai/complete` | 이어쓰기 |
-| POST | `/ai/search` | 자연어 설정 검색 |
 | POST | `/ai/style/convert` | 문체 변환 |
-| POST | `/ai/character/simulate` | 캐릭터 시뮬레이션 |
 | POST | `/ai/predict` | 독자반응 예측 |
 | POST | `/ai/translate` | 번역 |
-| POST | `/ai/transcribe` | 음성→텍스트 |
 
 ---
 

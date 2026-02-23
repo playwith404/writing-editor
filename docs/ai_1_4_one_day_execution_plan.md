@@ -4,10 +4,8 @@
 오늘(2026-02-21) 안에 AI 1~4 기능을 "실행 가능한 상태"로 끝낸다.
 
 대상 기능:
-1. 설정 검색
-2. 이어쓰기
-3. 문체 변환
-4. 캐릭터 시뮬레이션
+1. 이어쓰기
+2. 문체 변환
 
 ## 작업 범위
 포함:
@@ -44,13 +42,13 @@
 
 작업:
 - `AI_MODE=mock|live` 런타임 제어
-- 1~4 기능 deterministic mock 응답
+- 1~2 기능 deterministic mock 응답
 - provider 강제 옵션(`AI_FORCE_PROVIDER`) 추가
 
 완료 기준:
-- API 키 없이 1~4 엔드포인트 모두 200 응답
+- API 키 없이 1~2 엔드포인트 모두 200 응답
 
-### Phase 3 (Day3): 설정 검색/이어쓰기 live
+### Phase 3 (Day3): 이어쓰기/문체변환 live
 시간: 2h
 
 작업:
@@ -59,13 +57,13 @@
 - 타임아웃/모델 환경변수 반영
 
 완료 기준:
-- `AI_MODE=live` + `GEMINI_API_KEY`로 `/ai/search`, `/ai/complete` 정상
+- `AI_MODE=live` + `GEMINI_API_KEY`로 `/ai/complete`, `/ai/style/convert` 정상
 
-### Phase 4 (Day4): 문체 변환/캐릭터 시뮬 live
+### Phase 4 (Day4): 추가 기능 live
 시간: 2h
 
 작업:
-- live 모드에서 `/ai/style/convert`, `/ai/character/simulate` 검증
+- live 모드에서 추가 AI 기능 검증
 - 요청 추적 로그(`request_id`, provider, model, latency) 추가
 
 완료 기준:
@@ -101,7 +99,7 @@ AI_HTTP_TIMEOUT_SECONDS=60
 ```
 
 ## 최종 DoD
-1. 1~4 기능이 mock/live 모두 동작
+1. 1~2 기능이 mock/live 모두 동작
 2. 문서 계약서와 코드 응답 형식이 일치
 3. API 키 환경변수 주입 후 재빌드 없이 live 요청 가능
 4. 에러 응답에 최소 `code`, `message` 포함

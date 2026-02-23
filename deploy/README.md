@@ -1,20 +1,20 @@
-# Cowrite Dev Deploy
+# Gleey Dev Deploy
 
 ## 1) Server Preparation
 - Install Docker + Docker Compose v2
-- Create `/srv/cowrite`
-- Prepare `/srv/cowrite/.env` based on repo-root `.env.example`
+- Create `/srv/gleey`
+- Prepare `/srv/gleey/.env` based on repo-root `.env.example`
 
 ## 2) Required Environment Variables (`.env`)
-Use `.env.example` at the repo root and copy the same values into `/srv/cowrite/.env`.
+Use `.env.example` at the repo root and copy the same values into `/srv/gleey/.env`.
 
 ```env
 # Common
 DB_HOST=host.docker.internal
 DB_PORT=5432
-DB_USER=cowrite
+DB_USER=gleey
 DB_PASSWORD=replace_me
-DB_NAME=cowrite
+DB_NAME=gleey
 JWT_SECRET=replace_me
 REDIS_URL=redis://redis:6379
 ELASTICSEARCH_NODE=http://host.docker.internal:9200
@@ -32,7 +32,7 @@ GEMINI_MODEL=gemini-3-flash-preview
 
 ## 3) Deploy Command (Local Test)
 ```bash
-cd /srv/cowrite
+cd /srv/gleey
 docker compose -f deploy/docker-compose.dev.yml up -d --build
 ```
 

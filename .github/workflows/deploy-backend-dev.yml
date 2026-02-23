@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: cowrite-deploy-dev-backend
+  group: gleey-deploy-dev-backend
   cancel-in-progress: false
 
 permissions:
@@ -59,9 +59,9 @@ jobs:
             set -e
 
             IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-            ENV_CANDIDATES="/cowrite/.env $HOME/cowrite/.env /srv/cowrite/.env"
+            ENV_CANDIDATES="/gleey/.env $HOME/gleey/.env /srv/gleey/.env"
             ENV_FILE=""
-            NET="cowrite-net"
+            NET="gleey-net"
 
             for CANDIDATE in $ENV_CANDIDATES; do
               if [ -f "$CANDIDATE" ]; then
@@ -73,7 +73,7 @@ jobs:
             if [ -z "$ENV_FILE" ]; then
               echo "Missing env file. Checked: $ENV_CANDIDATES" >&2
               echo "whoami=$(whoami) host=$(hostname)" >&2
-              ls -ld /cowrite "$HOME/cowrite" /srv/cowrite 2>/dev/null || true
+              ls -ld /gleey "$HOME/gleey" /srv/gleey 2>/dev/null || true
               exit 1
             fi
             APP_ROOT="$(dirname "$ENV_FILE")"
@@ -91,8 +91,8 @@ jobs:
             docker pull "$IMAGE"
             docker pull redis:7-alpine
 
-            docker rm -f cowrite-backend cowrite-sync-service cowrite-ai-service cowrite-redis 2>/dev/null || true
+            docker rm -f gleey-backend gleey-sync-service gleey-ai-service gleey-redis 2>/dev/null || true
 
-            docker run -d               --name cowrite-redis               --restart unless-stopped               --network "$NET"               --network-alias redis               -p 6879:6379               -v redis_data:/data               redis:7-alpine
+            docker run -d               --name gleey-redis               --restart unless-stopped               --network "$NET"               --network-alias redis               -p 6879:6379               -v redis_data:/data               redis:7-alpine
 
-            docker run -d               --name cowrite-backend               --restart unless-stopped               --network "$NET"               --env-file "$ENV_FILE"               -e SERVICE_NAME=backend               -e AI_SERVICE_URL=http://127.0.0.1:8000               -e CORE_API_INTERNAL_URL=http://127.0.0.1:3000               --add-host host.docker.internal:host-gateway               -p 8100:3000               -p 8102:3001               -p 8101:8000               -v "$UPLOADS_DIR:/app/uploads"               "$IMAGE"
+            docker run -d               --name gleey-backend               --restart unless-stopped               --network "$NET"               --env-file "$ENV_FILE"               -e SERVICE_NAME=backend               -e AI_SERVICE_URL=http://127.0.0.1:8000               -e CORE_API_INTERNAL_URL=http://127.0.0.1:3000               --add-host host.docker.internal:host-gateway               -p 8100:3000               -p 8102:3001               -p 8101:8000               -v "$UPLOADS_DIR:/app/uploads"               "$IMAGE"

@@ -22,7 +22,7 @@ export default function BackupPage() {
       const url = URL.createObjectURL(res.blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = res.filename || `cowrite-backup-${projectId}.zip`
+      a.download = res.filename || `gleey-backup-${projectId}.zip`
       document.body.appendChild(a)
       a.click()
       a.remove()

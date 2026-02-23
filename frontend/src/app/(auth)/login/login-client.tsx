@@ -61,7 +61,7 @@ export default function LoginClient() {
     <Card>
       <CardHeader>
         <CardTitle>로그인</CardTitle>
-        <CardDescription>Cowrite에 로그인하세요.</CardDescription>
+        <CardDescription>Gleey에 로그인하세요.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={onSubmit}>

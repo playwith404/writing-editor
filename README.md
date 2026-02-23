@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">✍️ Cowrite</h1>
+  <h1 align="center">✍️ Gleey</h1>
   <p align="center">
     <strong>AI-Powered All-in-One Web Novel Writing Platform</strong><br>
     <em>"Write together with AI — 아이디어에서 출판까지"</em>
@@ -18,7 +18,7 @@
 
 ## 📖 Overview
 
-**Cowrite**는 웹소설 작가를 위한 **종합 AI 창작 플랫폼**입니다.  
+**Gleey**는 웹소설 작가를 위한 **종합 AI 창작 플랫폼**입니다.  
 기획부터 집필, 퇴고, 출판까지 모든 창작 과정을 하나의 플랫폼에서 지원하며, AI를 '대체자'가 아닌 '협력자'로 활용합니다.
 
 ### ✨ 핵심 가치
@@ -108,10 +108,8 @@
 - **자동 저장** — 로컬 + 클라우드 동기화
 
 ### 🤖 AI Assistant
-- **설정 검색** — 자연어로 설정/장면 검색
 - **이어쓰기 제안** — 문장/문단/대사 생성
 - **문체 변환** — 톤, 시점, 장르 스타일 변환
-- **캐릭터 시뮬레이션** — 캐릭터 성격 기반 대화 생성
 
 ### 🎮 스탯 매니저
 - **상태창 템플릿** — RPG, 로판 등 장르별 스탯 시스템
@@ -124,24 +122,15 @@
 - **버전 히스토리** — 자동 스냅샷, 롤백 지원
 
 ### 📤 퍼블리싱
-- **플랫폼 포맷 변환** — 카카오페이지, 노블피아, 리디북스 등
 - **통계 대시보드** — 집필 글자수, 시간, 속도 통계
 
-### 🚀 혁신 기능
-- 🎙️ **음성 집필** — Whisper 기반 STT
-- 👥 **베타리더 시스템** — 장르 매칭 피드백
-- 📊 **독자반응 예측 AI** — 템포, 클리프행어 분석
-- 🎨 **웹툰 스토리보드** — 소설 → 콘티 자동 변환
-- 🌍 **다국어 번역** — AI 번역 + 로컬라이징
-- 🎧 **오디오북 TTS** — 캐릭터별 음성 생성
-- 👨‍👩‍👧‍👦 **실시간 협업** — 동시 편집, 역할 권한
 
 ---
 
 ## 📁 Project Structure
 
 ```
-cowrite/
+gleey/
 ├── backend/
 │   ├── core/           # Spring Boot Core API
 │   ├── ai/             # FastAPI AI Service
@@ -186,7 +175,7 @@ uvicorn app.main:app --reload --port 8101
 ### Docker Deployment
 
 ```bash
-docker compose -p cowrite -f deploy/docker-compose.dev.yml up -d --build
+docker compose -p gleey -f deploy/docker-compose.dev.yml up -d --build
 ```
 
 ---
@@ -199,8 +188,8 @@ docker compose -p cowrite -f deploy/docker-compose.dev.yml up -d --build
 # Database
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=cowrite
-POSTGRES_USER=cowrite
+POSTGRES_DB=gleey
+POSTGRES_USER=gleey
 POSTGRES_PASSWORD=your_password
 
 # Redis

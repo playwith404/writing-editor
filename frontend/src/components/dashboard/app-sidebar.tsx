@@ -75,7 +75,7 @@ export function AppSidebar() {
                     <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                         <Home className="h-4 w-4" />
                     </div>
-                    <span className="font-bold text-lg">Cowrite</span>
+                    <span className="font-bold text-lg">Gleey</span>
                 </div>
             </SidebarHeader>
             <SidebarContent>

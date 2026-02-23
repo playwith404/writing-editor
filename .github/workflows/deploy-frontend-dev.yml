@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: cowrite-deploy-dev-frontend
+  group: gleey-deploy-dev-frontend
   cancel-in-progress: false
 
 permissions:
@@ -59,9 +59,9 @@ jobs:
             set -e
 
             IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-            ENV_CANDIDATES="/cowrite/.env $HOME/cowrite/.env /srv/cowrite/.env"
+            ENV_CANDIDATES="/gleey/.env $HOME/gleey/.env /srv/gleey/.env"
             ENV_FILE=""
-            NET="cowrite-net"
+            NET="gleey-net"
 
             for CANDIDATE in $ENV_CANDIDATES; do
               if [ -f "$CANDIDATE" ]; then
@@ -73,7 +73,7 @@ jobs:
             if [ -z "$ENV_FILE" ]; then
               echo "Missing env file. Checked: $ENV_CANDIDATES" >&2
               echo "whoami=$(whoami) host=$(hostname)" >&2
-              ls -ld /cowrite "$HOME/cowrite" /srv/cowrite 2>/dev/null || true
+              ls -ld /gleey "$HOME/gleey" /srv/gleey 2>/dev/null || true
               exit 1
             fi
 
@@ -86,6 +86,6 @@ jobs:
             fi
 
             docker pull "$IMAGE"
-            docker rm -f cowrite-frontend 2>/dev/null || true
+            docker rm -f gleey-frontend 2>/dev/null || true
 
-            docker run -d               --name cowrite-frontend               --restart unless-stopped               --network "$NET"               --env-file "$ENV_FILE"               -p 3100:3000               "$IMAGE"
+            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --env-file "$ENV_FILE"               -p 3100:3000               "$IMAGE"

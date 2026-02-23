@@ -18,10 +18,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const read = () => setToken(getAccessToken())
     read()
     window.addEventListener("storage", read)
-    window.addEventListener("cowrite.auth", read)
+    window.addEventListener("gleey.auth", read)
     return () => {
       window.removeEventListener("storage", read)
-      window.removeEventListener("cowrite.auth", read)
+      window.removeEventListener("gleey.auth", read)
     }
   }, [])
 

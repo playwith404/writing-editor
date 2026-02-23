@@ -4,17 +4,17 @@ This script creates a PostgreSQL role/database and optionally applies the schema
 
 ## Usage
 ```bash
-cd /root/cowrite/database
+cd /root/gleey/database
 ./init_db.sh
 ```
 
 ## Environment overrides
 ```bash
-DB_NAME=cowrite \
-DB_USER=cowrite \
+DB_NAME=gleey \
+DB_USER=gleey \
 DB_PASSWORD=your_secure_password \
 APPLY_SCHEMA=1 \
-SCHEMA_FILE=/root/cowrite/database/schema.sql \
+SCHEMA_FILE=/root/gleey/database/schema.sql \
 ./init_db.sh
 ```
 

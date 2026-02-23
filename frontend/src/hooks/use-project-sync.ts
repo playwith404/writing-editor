@@ -49,17 +49,17 @@ export function useProjectSync({
     update()
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "cowrite.accessToken" || e.key === "cowrite.refreshToken") {
+      if (e.key === "gleey.accessToken" || e.key === "gleey.refreshToken") {
         update()
       }
     }
     const onAuth = () => update()
 
     window.addEventListener("storage", onStorage)
-    window.addEventListener("cowrite.auth", onAuth)
+    window.addEventListener("gleey.auth", onAuth)
     return () => {
       window.removeEventListener("storage", onStorage)
-      window.removeEventListener("cowrite.auth", onAuth)
+      window.removeEventListener("gleey.auth", onAuth)
     }
   }, [])
 

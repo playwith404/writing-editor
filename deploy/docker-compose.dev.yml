@@ -2,11 +2,11 @@ version: "3.8"
 
 services:
   frontend:
-    image: cowrite-frontend:dev
+    image: gleey-frontend:dev
     build:
       context: ../frontend
       dockerfile: Dockerfile
-    container_name: cowrite-frontend
+    container_name: gleey-frontend
     ports:
       - "3100:3000"
     env_file:
@@ -14,11 +14,11 @@ services:
     restart: unless-stopped
 
   backend:
-    image: cowrite-backend:dev
+    image: gleey-backend:dev
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: cowrite-backend
+    container_name: gleey-backend
     ports:
       - "8100:3000"
       - "8102:3001"
@@ -39,7 +39,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: cowrite-redis
+    container_name: gleey-redis
     ports:
       - "6879:6379"
     volumes:

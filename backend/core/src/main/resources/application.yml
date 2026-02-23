@@ -29,8 +29,8 @@ smtp:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cowrite}
-    username: ${DB_USER:cowrite}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:gleey}
+    username: ${DB_USER:gleey}
     password: ${DB_PASSWORD:}
   jpa:
     hibernate:
