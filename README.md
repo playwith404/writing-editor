@@ -212,6 +212,7 @@ GitHub Actions 워크플로우:
 - `.github/workflows/deploy-frontend-dev.yml` — Frontend 자동 배포
 - `.github/workflows/deploy-backend-dev.yml` — Backend 자동 배포
 - `.github/workflows/deploy-dev.yml` — 전체 배포 (수동)
+- `deploy/nginx/default.conf` — Nginx 리버스 프록시 설정
 
 ### Required Secrets
 - `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `SSH_PORT`

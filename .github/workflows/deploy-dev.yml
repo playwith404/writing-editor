@@ -49,6 +49,16 @@ jobs:
             ${{ env.FRONTEND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.FRONTEND_IMAGE_NAME }}:${{ env.IMAGE_LATEST_TAG }}
 
+      - name: Upload nginx config
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: deploy/nginx/default.conf
+          target: /tmp/gleey-deploy
+
       - name: Deploy full stack via SSH (pull and run only)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -81,8 +91,24 @@ jobs:
             fi
             APP_ROOT="$(dirname "$ENV_FILE")"
             UPLOADS_DIR="$APP_ROOT/uploads"
+            NGINX_DIR="$APP_ROOT/nginx"
+            NGINX_CONF="$NGINX_DIR/default.conf"
+            NGINX_SOURCE_CANDIDATES="/tmp/gleey-deploy/deploy/nginx/default.conf /tmp/deploy/nginx/default.conf /tmp/default.conf"
+            NGINX_SOURCE_FILE=""
 
-            mkdir -p "$UPLOADS_DIR"
+            for CANDIDATE in $NGINX_SOURCE_CANDIDATES; do
+              if [ -f "$CANDIDATE" ]; then
+                NGINX_SOURCE_FILE="$CANDIDATE"
+                break
+              fi
+            done
+
+            if [ -z "$NGINX_SOURCE_FILE" ]; then
+              echo "Missing nginx config. Checked: $NGINX_SOURCE_CANDIDATES" >&2
+              exit 1
+            fi
+
+            mkdir -p "$UPLOADS_DIR" "$NGINX_DIR"
             docker network inspect "$NET" >/dev/null 2>&1 || docker network create "$NET"
 
             if [ -n "${{ secrets.GHCR_USERNAME }}" ] && [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
@@ -95,10 +121,14 @@ jobs:
             docker pull "$FRONTEND_IMAGE"
             docker pull redis:7-alpine
 
-            docker rm -f gleey-frontend gleey-backend gleey-sync-service gleey-ai-service gleey-redis 2>/dev/null || true
+            docker rm -f gleey-nginx gleey-frontend gleey-backend gleey-sync-service gleey-ai-service gleey-redis 2>/dev/null || true
 
             docker run -d               --name gleey-redis               --restart unless-stopped               --network "$NET"               --network-alias redis               -p 6879:6379               -v redis_data:/data               redis:7-alpine
 
             docker run -d               --name gleey-backend               --restart unless-stopped               --network "$NET"               --network-alias backend               --env-file "$ENV_FILE"               -e SERVICE_NAME=backend               -e AI_SERVICE_URL=http://127.0.0.1:8000               -e CORE_API_INTERNAL_URL=http://127.0.0.1:3000               --add-host host.docker.internal:host-gateway               -p 8100:3000               -p 8102:3001               -p 8101:8000               -v "$UPLOADS_DIR:/app/uploads"               "$BACKEND_IMAGE"
 
-            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --env-file "$ENV_FILE"               -p 3100:3000               "$FRONTEND_IMAGE"
+            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --network-alias frontend               --env-file "$ENV_FILE"               -p 3100:3000               "$FRONTEND_IMAGE"
+
+            cp "$NGINX_SOURCE_FILE" "$NGINX_CONF"
+
+            docker run -d               --name gleey-nginx               --restart unless-stopped               --network "$NET"               -p 80:80               -v "$NGINX_CONF:/etc/nginx/conf.d/default.conf:ro"               nginx:1.27-alpine
