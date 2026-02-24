@@ -7,7 +7,6 @@ on:
     paths:
       - "backend/**"
       - "database/**"
-      - "deploy/docker-compose.dev.yml"
       - ".github/workflows/deploy-backend-dev.yml"
   workflow_dispatch:
   repository_dispatch:
@@ -99,3 +98,7 @@ jobs:
             docker run -d               --name gleey-redis               --restart unless-stopped               --network "$NET"               --network-alias redis               -v redis_data:/data               redis:7-alpine
 
             docker run -d               --name gleey-backend               --restart unless-stopped               --network "$NET"               --network-alias backend               --env-file "$ENV_FILE"               -e SERVICE_NAME=backend               -e AI_SERVICE_URL=http://127.0.0.1:8000               -e CORE_API_INTERNAL_URL=http://127.0.0.1:3000               --add-host host.docker.internal:host-gateway               -v "$UPLOADS_DIR:/app/uploads"               "$IMAGE"
+
+            if docker ps -a --format '{{.Names}}' | grep -Fxq gleey-nginx; then
+              docker exec gleey-nginx nginx -s reload || docker restart gleey-nginx
+            fi

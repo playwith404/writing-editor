@@ -6,7 +6,6 @@ on:
       - dev
     paths:
       - "frontend/**"
-      - "deploy/docker-compose.dev.yml"
       - "deploy/nginx/**"
       - ".github/workflows/deploy-frontend-dev.yml"
   workflow_dispatch:
@@ -92,3 +91,7 @@ jobs:
             docker rm -f gleey-frontend 2>/dev/null || true
 
             docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --network-alias frontend               --env-file "$ENV_FILE"               "$IMAGE"
+
+            if docker ps -a --format '{{.Names}}' | grep -Fxq gleey-nginx; then
+              docker exec gleey-nginx nginx -s reload || docker restart gleey-nginx
+            fi

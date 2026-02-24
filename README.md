@@ -172,11 +172,13 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8101
 ```
 
-### Docker Deployment
+### Docker Deployment (Local Only)
 
 ```bash
 docker compose -p gleey -f deploy/docker-compose.dev.yml up -d --build
 ```
+
+Production server deploy should use GitHub Actions workflows (`.github/workflows/deploy-dev.yml`) and expose only nginx `80/443`.
 
 ---
 

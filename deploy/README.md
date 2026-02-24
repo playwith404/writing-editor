@@ -19,9 +19,15 @@ JWT_SECRET=replace_me
 REDIS_URL=redis://redis:6379
 ELASTICSEARCH_NODE=http://host.docker.internal:9200
 
-# Frontend (optional)
-NEXT_PUBLIC_API_URL=http://localhost:8100
-NEXT_PUBLIC_WS_URL=ws://localhost:8102/ws
+# Frontend (production)
+# Recommended: leave empty and let frontend use nginx routes (/api, /ws) on current host
+NEXT_PUBLIC_API_URL=
+NEXT_PUBLIC_WS_URL=
+APP_BASE_URL=https://gleey.jicloud.site
+
+# Optional fixed domain values
+# NEXT_PUBLIC_API_URL=https://gleey.jicloud.site/api
+# NEXT_PUBLIC_WS_URL=wss://gleey.jicloud.site/ws
 
 # AI
 AI_MODE=mock

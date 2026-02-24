@@ -117,6 +117,25 @@ jobs:
               echo "Expected: $SSL_CERT and $SSL_KEY" >&2
               exit 1
             fi
+            if [ ! -s "$SSL_CERT" ] || [ ! -s "$SSL_KEY" ]; then
+              echo "SSL files are empty." >&2
+              echo "Expected non-empty: $SSL_CERT and $SSL_KEY" >&2
+              exit 1
+            fi
+            if ! openssl x509 -in "$SSL_CERT" -noout >/dev/null 2>&1; then
+              echo "Invalid SSL certificate PEM: $SSL_CERT" >&2
+              exit 1
+            fi
+            if ! openssl pkey -in "$SSL_KEY" -noout >/dev/null 2>&1; then
+              echo "Invalid SSL private key PEM: $SSL_KEY" >&2
+              exit 1
+            fi
+            CERT_PUB_HASH="$(openssl x509 -in "$SSL_CERT" -pubkey -noout 2>/dev/null | openssl pkey -pubin -outform der 2>/dev/null | openssl dgst -sha256 | awk '{print $NF}')"
+            KEY_PUB_HASH="$(openssl pkey -in "$SSL_KEY" -pubout -outform der 2>/dev/null | openssl dgst -sha256 | awk '{print $NF}')"
+            if [ -z "$CERT_PUB_HASH" ] || [ -z "$KEY_PUB_HASH" ] || [ "$CERT_PUB_HASH" != "$KEY_PUB_HASH" ]; then
+              echo "SSL certificate and key do not match." >&2
+              exit 1
+            fi
             docker network inspect "$NET" >/dev/null 2>&1 || docker network create "$NET"
 
             if [ -n "${{ secrets.GHCR_USERNAME }}" ] && [ -n "${{ secrets.GHCR_TOKEN }}" ]; then

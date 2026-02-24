@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: gleey-frontend
     ports:
-      - "3100:3000"
+      - "127.0.0.1:3100:3000"
     env_file:
       - ../.env
     restart: unless-stopped
@@ -20,9 +20,9 @@ services:
       dockerfile: Dockerfile
     container_name: gleey-backend
     ports:
-      - "8100:3000"
-      - "8102:3001"
-      - "8101:8000"
+      - "127.0.0.1:8100:3000"
+      - "127.0.0.1:8102:3001"
+      - "127.0.0.1:8101:8000"
     volumes:
       - ../uploads:/app/uploads
     env_file:
@@ -41,7 +41,7 @@ services:
     image: redis:7-alpine
     container_name: gleey-redis
     ports:
-      - "6879:6379"
+      - "127.0.0.1:6879:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
