@@ -1,118 +1,115 @@
 "use client"
 
-import { useParams } from "next/navigation"
-import { useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
+import { Bell, Check, Shield, SlidersHorizontal, Users } from "lucide-react"
 
-import { api, ApiError } from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+function SettingSwitch({
+  title,
+  description,
+  checked,
+  onChange,
+}: {
+  title: string
+  description: string
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-[#d9e2ee] bg-white p-4">
+      <div>
+        <h3 className="text-base font-semibold text-[#1f2937]">{title}</h3>
+        <p className="mt-1 text-sm text-[#7d6f62]">{description}</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={checked
+          ? "relative h-7 w-14 rounded-full bg-[#938274]"
+          : "relative h-7 w-14 rounded-full bg-[#d5dbe6]"
+        }
+        aria-pressed={checked}
+      >
+        <span
+          className={checked
+            ? "absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#938274]"
+            : "absolute left-1 top-1 h-5 w-5 rounded-full bg-white"
+          }
+        >
+          {checked ? <Check className="h-3.5 w-3.5" /> : null}
+        </span>
+      </button>
+    </div>
+  )
+}
 
-export default function PaymentPage() {
-  const params = useParams<{ projectId: string }>()
-  void params.projectId // 페이지 경로상 프로젝트 하위에 있지만, 요금제는 계정 단위입니다.
-
-  const qc = useQueryClient()
-
-  const plansQuery = useQuery({
-    queryKey: ["billing", "plans"],
-    queryFn: () => api.billing.plans(),
-  })
-  const plans = useMemo(() => (plansQuery.data ?? []) as any[], [plansQuery.data])
-
-  const subscriptionQuery = useQuery({
-    queryKey: ["billing", "subscription"],
-    queryFn: () => api.billing.subscription(),
-  })
-
-  const [error, setError] = useState<string | null>(null)
-  const subscribeMutation = useMutation({
-    mutationFn: async (plan: "free" | "pro" | "master") => {
-      setError(null)
-      return api.billing.subscribe({ plan })
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["billing", "subscription"] })
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "요금제 변경 요청에 실패했습니다."),
-  })
+export default function ProjectSettingsPage() {
+  const [autoSave, setAutoSave] = useState(true)
+  const [teamMode, setTeamMode] = useState(true)
+  const [alertMode, setAlertMode] = useState(false)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">요금제</h2>
-        <p className="text-sm text-muted-foreground">
-          현재는 결제 연동 전 상태로, Pro/Master는 관리자 승인 방식으로 활성화됩니다.
-        </p>
+        <h1 className="text-[32px] font-bold text-[#111827]">작품 설정</h1>
+        <p className="mt-2 text-lg text-[#7d6f62]">작가 모드 프로젝트의 편집 환경을 프론트에서 미리 구성합니다.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">현재 구독</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {subscriptionQuery.isLoading && <div className="text-muted-foreground">불러오는 중...</div>}
-          {subscriptionQuery.isError && <div className="text-red-600">구독 정보를 불러오지 못했습니다.</div>}
-          {subscriptionQuery.data && (
-            <div className="space-y-1">
-              <div>
-                플랜: <span className="font-medium">{subscriptionQuery.data.plan ?? "free"}</span>
-              </div>
-              <div className="text-muted-foreground">
-                상태: {subscriptionQuery.data.status ?? "none"}
-              </div>
-              {subscriptionQuery.data.currentPeriodEnd && (
-                <div className="text-muted-foreground">
-                  종료일: {new Date(subscriptionQuery.data.currentPeriodEnd).toLocaleString()}
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-[#d9e2ee] bg-white p-6">
+          <div className="mb-4 inline-flex rounded-xl bg-[#f3eee7] p-3 text-[#8a7b6c]">
+            <SlidersHorizontal className="h-5 w-5" />
+          </div>
+          <h2 className="text-xl font-bold text-[#1f2937]">집필 환경</h2>
+          <p className="mt-2 text-sm leading-6 text-[#7d6f62]">문서 뷰, 자동 저장 주기, 초안 버전 정책을 설정합니다.</p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">플랜 선택</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {plansQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-          {plansQuery.isError && <div className="text-sm text-red-600">플랜 목록을 불러오지 못했습니다.</div>}
+        <div className="rounded-2xl border border-[#d9e2ee] bg-white p-6">
+          <div className="mb-4 inline-flex rounded-xl bg-[#f3eee7] p-3 text-[#8a7b6c]">
+            <Shield className="h-5 w-5" />
+          </div>
+          <h2 className="text-xl font-bold text-[#1f2937]">권한 정책</h2>
+          <p className="mt-2 text-sm leading-6 text-[#7d6f62]">협업자 권한, 열람 범위, 편집 제약 조건을 정의합니다.</p>
+        </div>
+      </section>
 
-          {plans.map((p) => (
-            <div key={p.id} className="rounded-md border p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-medium">{p.name}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {p.priceMonthly?.toLocaleString?.() ?? p.priceMonthly} {p.currency}/월
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  disabled={subscribeMutation.isPending}
-                  onClick={() => subscribeMutation.mutate(p.id)}
-                >
-                  선택
-                </Button>
-              </div>
-              {Array.isArray(p.features) && p.features.length > 0 && (
-                <>
-                  <Separator className="my-2" />
-                  <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                    {p.features.map((f: any, idx: number) => (
-                      <li key={idx}>{String(f)}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          ))}
+      <section className="space-y-3">
+        <SettingSwitch
+          title="자동 저장"
+          description="입력 중인 원고를 10초 간격으로 로컬에 자동 저장합니다."
+          checked={autoSave}
+          onChange={setAutoSave}
+        />
+        <SettingSwitch
+          title="협업 모드"
+          description="팀원이 동시에 캐릭터/플롯 보드를 편집할 수 있습니다."
+          checked={teamMode}
+          onChange={setTeamMode}
+        />
+        <SettingSwitch
+          title="알림 요약"
+          description="변경 사항 요약 알림을 사이드바 하단에 표시합니다."
+          checked={alertMode}
+          onChange={setAlertMode}
+        />
+      </section>
 
-          {error && <div className="text-sm text-red-600">{error}</div>}
-        </CardContent>
-      </Card>
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-[#d9e2ee] bg-white p-5">
+          <h3 className="flex items-center gap-2 text-sm font-bold tracking-wide text-[#1f2937]">
+            <Users className="h-4 w-4 text-[#8a7b6c]" />
+            COLLABORATION
+          </h3>
+          <p className="mt-3 text-sm text-[#7d6f62]">현재 4명의 협업자가 연결되어 있습니다. 역할별 권한은 다음 스프린트에서 확장합니다.</p>
+        </div>
+
+        <div className="rounded-2xl border border-[#d9e2ee] bg-white p-5">
+          <h3 className="flex items-center gap-2 text-sm font-bold tracking-wide text-[#1f2937]">
+            <Bell className="h-4 w-4 text-[#8a7b6c]" />
+            ALERTS
+          </h3>
+          <p className="mt-3 text-sm text-[#7d6f62]">씬 작성량, 캐릭터 변경, 관계성 업데이트 알림을 화면 우측 패널에 표시합니다.</p>
+        </div>
+      </section>
     </div>
   )
 }

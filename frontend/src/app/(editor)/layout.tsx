@@ -7,7 +7,7 @@ export default function EditorLayout({
 }) {
     return (
         <AuthGuard>
-            <div className="min-h-screen bg-background text-foreground">
+            <div className="h-[100dvh] overflow-hidden bg-background text-foreground">
                 {children}
             </div>
         </AuthGuard>

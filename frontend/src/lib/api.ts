@@ -20,6 +20,34 @@ function getApiBaseUrl(): string {
   return "/api"
 }
 
+function parseResponseData(text: string): unknown {
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+function extractErrorMessage(data: unknown, fallback: string): string {
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>
+    if (typeof record.message === "string" && record.message.trim()) return record.message
+    if (typeof record.error === "string" && record.error.trim()) return record.error
+  }
+
+  if (typeof data === "string") {
+    const normalized = data
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+
+    if (normalized) return normalized.slice(0, 180)
+  }
+
+  return fallback
+}
+
 async function apiFetch<T>(path: string, init?: { method?: ApiMethod; body?: any; headers?: Record<string, string> }, retry = true): Promise<T> {
   const url = `${getApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`
 
@@ -37,7 +65,7 @@ async function apiFetch<T>(path: string, init?: { method?: ApiMethod; body?: any
   })
 
   const text = await resp.text()
-  const data = text ? JSON.parse(text) : null
+  const data = parseResponseData(text)
 
   if (resp.status === 401 && retry) {
     const refreshed = await tryRefresh()
@@ -47,10 +75,7 @@ async function apiFetch<T>(path: string, init?: { method?: ApiMethod; body?: any
   }
 
   if (!resp.ok) {
-    const message =
-      (data && typeof data === "object" && ("message" in (data as any) ? (data as any).message : (data as any).error)) ||
-      resp.statusText ||
-      "요청에 실패했습니다."
+    const message = extractErrorMessage(data, resp.statusText || "요청에 실패했습니다.")
     throw new ApiError(String(message), resp.status, data)
   }
 
@@ -70,7 +95,7 @@ async function apiUpload<T>(path: string, formData: FormData, retry = true): Pro
   })
 
   const text = await resp.text()
-  const data = text ? JSON.parse(text) : null
+  const data = parseResponseData(text)
 
   if (resp.status === 401 && retry) {
     const refreshed = await tryRefresh()
@@ -80,10 +105,7 @@ async function apiUpload<T>(path: string, formData: FormData, retry = true): Pro
   }
 
   if (!resp.ok) {
-    const message =
-      (data && typeof data === "object" && ("message" in (data as any) ? (data as any).message : (data as any).error)) ||
-      resp.statusText ||
-      "요청에 실패했습니다."
+    const message = extractErrorMessage(data, resp.statusText || "요청에 실패했습니다.")
     throw new ApiError(String(message), resp.status, data)
   }
 
@@ -131,11 +153,8 @@ async function apiDownload(
 
   if (!resp.ok) {
     const text = await resp.text()
-    const data = text ? JSON.parse(text) : null
-    const message =
-      (data && typeof data === "object" && ("message" in (data as any) ? (data as any).message : (data as any).error)) ||
-      resp.statusText ||
-      "요청에 실패했습니다."
+    const data = parseResponseData(text)
+    const message = extractErrorMessage(data, resp.statusText || "요청에 실패했습니다.")
     throw new ApiError(String(message), resp.status, data)
   }
 

@@ -10,6 +10,9 @@ on:
       - "deploy/nginx/**"
       - ".github/workflows/deploy-frontend-dev.yml"
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - deploy-frontend-dev
 
 concurrency:
   group: gleey-deploy-dev-frontend
@@ -88,4 +91,4 @@ jobs:
             docker pull "$IMAGE"
             docker rm -f gleey-frontend 2>/dev/null || true
 
-            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --env-file "$ENV_FILE"               -p 3100:3000               "$IMAGE"
+            docker run -d               --name gleey-frontend               --restart unless-stopped               --network "$NET"               --network-alias frontend               --env-file "$ENV_FILE"               -p 3100:3000               "$IMAGE"
