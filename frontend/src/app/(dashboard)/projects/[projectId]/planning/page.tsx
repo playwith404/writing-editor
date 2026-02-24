@@ -1,1006 +1,655 @@
 "use client"
 
+import Link from "next/link"
 import { useParams } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMemo, useRef, useState } from "react"
+import type { ComponentType, FormEvent, PointerEvent as ReactPointerEvent } from "react"
+import {
+  CircleAlert,
+  Download,
+  Globe,
+  History,
+  Layers,
+  Map,
+  PenLine,
+  Plus,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Users,
+  Wand2,
+  ZoomIn,
+  ZoomOut,
+  X,
+} from "lucide-react"
 
-import { api, ApiError } from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { RelationshipDiagram } from "@/components/planning/relationship-diagram"
+type Relationship = {
+  targetId: string
+  label: "ALLY" | "RIVAL"
+  value: number
+}
+
+type CharacterNode = {
+  id: string
+  name: string
+  role: string
+  summary: string
+  avatar: string
+  traits: string[]
+  arc: string
+  ties: Relationship[]
+  x: number
+  y: number
+}
+
+type TieFilter = "all" | "ally" | "rival"
+
+const fallbackNodes: CharacterNode[] = [
+  {
+    id: "arthur-vance",
+    name: "마길초",
+    role: "주인공",
+    summary: "진실을 추적하며 사건의 중심으로 들어가는 주인공이다.",
+    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Magilcho",
+    traits: ["단호함", "전략적", "책임감", "충동성"],
+    arc: "마길초는 진실을 좇는 과정에서 이상과 현실의 균열을 마주한다. 은서와의 신뢰를 지키면서도 점점 더 위험한 선택을 하게 된다.",
+    ties: [
+      { targetId: "elara-night", label: "ALLY", value: 80 },
+      { targetId: "silas-thorne", label: "RIVAL", value: 95 },
+    ],
+    x: 35,
+    y: 34,
+  },
+  {
+    id: "elara-night",
+    name: "강은서",
+    role: "조력자",
+    summary: "정보 분석에 강한 인물로, 냉정한 판단으로 팀의 균형을 잡는다.",
+    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Eunseo",
+    traits: ["신뢰", "침착함", "관찰력"],
+    arc: "강은서는 마길초의 폭주를 막으면서 스스로의 한계와 두려움을 마주한다.",
+    ties: [{ targetId: "arthur-vance", label: "ALLY", value: 80 }],
+    x: 68,
+    y: 40,
+  },
+  {
+    id: "silas-thorne",
+    name: "송은재",
+    role: "라이벌",
+    summary: "그림자에서 판을 설계하며 갈등을 키우는 핵심 인물이다.",
+    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Eunjae",
+    traits: ["계산적", "침착함", "냉혹함"],
+    arc: "송은재는 마길초의 약점을 집요하게 파고들며 서사의 갈등을 극대화한다.",
+    ties: [{ targetId: "arthur-vance", label: "RIVAL", value: 95 }],
+    x: 49,
+    y: 74,
+  },
+]
+
+function relationshipTone(label: "ALLY" | "RIVAL") {
+  if (label === "ALLY") {
+    return {
+      pill: "bg-[#ecfdf3] text-[#22a060]",
+      bar: "bg-[#f97316]",
+      tag: "신뢰",
+    }
+  }
+
+  return {
+    pill: "bg-[#feecec] text-[#ef4444]",
+    bar: "bg-[#ef4444]",
+    tag: "갈등",
+  }
+}
+
+function relationshipLabel(label: "ALLY" | "RIVAL") {
+  return label === "ALLY" ? "동맹" : "대립"
+}
+
+function CategoryLink({
+  href,
+  label,
+  icon: Icon,
+  active = false,
+}: {
+  href: string
+  label: string
+  icon: ComponentType<{ className?: string }>
+  active?: boolean
+}) {
+  return (
+    <Link
+      href={href}
+      className={active
+        ? "inline-flex items-center gap-2 rounded-md bg-[#938274] px-4 py-2 text-sm font-semibold text-white"
+        : "inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#6d6155] hover:bg-gray-50"
+      }
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </Link>
+  )
+}
+
+function AddNodeModal({
+  open,
+  onClose,
+  onCreate,
+}: {
+  open: boolean
+  onClose: () => void
+  onCreate: (payload: { name: string; role: string; summary: string }) => void
+}) {
+  const [name, setName] = useState("")
+  const [role, setRole] = useState("인물")
+  const [summary, setSummary] = useState("")
+
+  if (!open) return null
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!name.trim()) return
+    onCreate({
+      name: name.trim(),
+      role: role.trim() || "인물",
+      summary: summary.trim() || "새 인물의 소개를 입력하세요.",
+    })
+    setName("")
+    setRole("인물")
+    setSummary("")
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-[#ddd4c8] bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-[#111827]">등장인물 노드 추가</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-[#9a8d7f] hover:bg-[#f8f4ee]" aria-label="close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-[#334155]">이름</label>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="예: 레오 하인츠"
+              className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#f97316]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-[#334155]">역할</label>
+            <input
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+              placeholder="예: 조력자"
+              className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#f97316]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-[#334155]">설명</label>
+            <textarea
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+              rows={4}
+              placeholder="인물 설명"
+              className="w-full rounded-xl border border-[#ddd4c8] px-3 py-2 text-sm outline-none transition focus:border-[#f97316]"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-[#ddd4c8] px-4 py-2 text-sm font-semibold text-[#7d6f62] hover:bg-[#faf6f1]"
+            >
+              취소
+            </button>
+            <button type="submit" className="rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea580c]">
+              추가하기
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function EdgeLines({
+  nodes,
+  selectedId,
+  tieFilter,
+  visibleNodeIds,
+}: {
+  nodes: CharacterNode[]
+  selectedId: string
+  tieFilter: TieFilter
+  visibleNodeIds: Set<string>
+}) {
+  const edges = useMemo(() => {
+    const list: Array<{ from: CharacterNode; to: CharacterNode; label: "ALLY" | "RIVAL" }> = []
+
+    nodes.forEach((node) => {
+      if (!visibleNodeIds.has(node.id)) return
+
+      node.ties.forEach((tie) => {
+        if (tieFilter === "ally" && tie.label !== "ALLY") return
+        if (tieFilter === "rival" && tie.label !== "RIVAL") return
+
+        const target = nodes.find((candidate) => candidate.id === tie.targetId)
+        if (!target || !visibleNodeIds.has(target.id)) return
+
+        const existing = list.find(
+          (row) =>
+            (row.from.id === node.id && row.to.id === target.id) ||
+            (row.from.id === target.id && row.to.id === node.id)
+        )
+
+        if (!existing) list.push({ from: node, to: target, label: tie.label })
+      })
+    })
+
+    return list
+  }, [nodes, tieFilter, visibleNodeIds])
+
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {edges.map((edge) => {
+        const highlighted = edge.from.id === selectedId || edge.to.id === selectedId
+        const dotted = edge.label === "RIVAL"
+
+        return (
+          <g key={`${edge.from.id}-${edge.to.id}`}>
+            <line
+              x1={edge.from.x}
+              y1={edge.from.y}
+              x2={edge.to.x}
+              y2={edge.to.y}
+              stroke={highlighted ? "#f97316" : "#cbd5e1"}
+              strokeWidth={highlighted ? "0.35" : "0.3"}
+              strokeDasharray={dotted ? "1.4 0.9" : "0"}
+            />
+            <text
+              x={(edge.from.x + edge.to.x) / 2}
+              y={(edge.from.y + edge.to.y) / 2 - 1.2}
+              textAnchor="middle"
+              fill={highlighted ? "#f97316" : "#9a8d7f"}
+              style={{ fontSize: "1.5px", fontWeight: 700 }}
+            >
+              {relationshipLabel(edge.label)}
+            </text>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
 
 export default function PlanningPage() {
   const params = useParams<{ projectId: string }>()
   const projectId = params.projectId
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">기획실</h2>
-        <p className="text-sm text-muted-foreground">
-          인물/세계관/관계도/플롯을 한 곳에서 관리합니다.
-        </p>
-      </div>
+  const [nodes, setNodes] = useState<CharacterNode[]>(fallbackNodes)
+  const [selectedId, setSelectedId] = useState<string>(fallbackNodes[0].id)
+  const [tieFilter, setTieFilter] = useState<TieFilter>("all")
+  const [searchText, setSearchText] = useState("")
+  const [zoom, setZoom] = useState(1)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(true)
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null)
 
-      <Tabs defaultValue="characters">
-        <TabsList className="w-full grid grid-cols-4">
-          <TabsTrigger value="characters">인물</TabsTrigger>
-          <TabsTrigger value="world">세계관</TabsTrigger>
-          <TabsTrigger value="relationships">관계도</TabsTrigger>
-          <TabsTrigger value="plots">플롯</TabsTrigger>
-        </TabsList>
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const nodeCounterRef = useRef(fallbackNodes.length + 1)
 
-        <TabsContent value="characters">
-          <CharactersTab projectId={projectId} />
-        </TabsContent>
-        <TabsContent value="world">
-          <WorldTab projectId={projectId} />
-        </TabsContent>
-        <TabsContent value="relationships">
-          <RelationshipsTab projectId={projectId} />
-        </TabsContent>
-        <TabsContent value="plots">
-          <PlotsTab projectId={projectId} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
+  const visibleNodes = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase()
+    if (!keyword) return nodes
+    return nodes.filter((node) => node.name.toLowerCase().includes(keyword) || node.role.toLowerCase().includes(keyword))
+  }, [nodes, searchText])
 
-function CharactersTab({ projectId }: { projectId: string }) {
-  const qc = useQueryClient()
+  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((node) => node.id)), [visibleNodes])
+  const activeSelectedId = useMemo(() => {
+    if (visibleNodes.some((node) => node.id === selectedId)) return selectedId
+    return visibleNodes[0]?.id ?? nodes[0]?.id ?? ""
+  }, [nodes, selectedId, visibleNodes])
 
-  const charactersQuery = useQuery({
-    queryKey: ["characters", projectId],
-    queryFn: () => api.characters.list(projectId),
-  })
-  const characters = useMemo(() => (charactersQuery.data ?? []) as any[], [charactersQuery.data])
+  const selectedNode = nodes.find((node) => node.id === activeSelectedId) ?? nodes[0]
 
-  const [createOpen, setCreateOpen] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected = useMemo(() => (selectedId ? characters.find((c) => String(c.id) === selectedId) : null), [characters, selectedId])
+  const relationshipCards = selectedNode
+    ? selectedNode.ties
+        .filter((tie) => {
+          if (tieFilter === "ally") return tie.label === "ALLY"
+          if (tieFilter === "rival") return tie.label === "RIVAL"
+          return true
+        })
+        .map((tie) => {
+          const target = nodes.find((node) => node.id === tie.targetId)
+          if (!target) return null
+          return { tie, target }
+        })
+        .filter((row): row is { tie: Relationship; target: CharacterNode } => Boolean(row))
+    : []
 
-  const [name, setName] = useState("")
-  const [role, setRole] = useState("")
-  const [createError, setCreateError] = useState<string | null>(null)
+  const updateNodePosition = (event: ReactPointerEvent, nodeId: string) => {
+    if (draggingNodeId !== nodeId) return
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      setCreateError(null)
-      return api.characters.create({ projectId, name: name.trim(), role: role.trim() || undefined })
-    },
-    onSuccess: async (created) => {
-      await qc.invalidateQueries({ queryKey: ["characters", projectId] })
-      setSelectedId(String(created.id))
-      setName("")
-      setRole("")
-      setCreateOpen(false)
-    },
-    onError: (err) => setCreateError(err instanceof ApiError ? err.message : "인물 등록에 실패했습니다."),
-  })
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => api.characters.delete(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["characters", projectId] })
-      setSelectedId(null)
-    },
-  })
+    const rect = canvas.getBoundingClientRect()
+    const rawX = ((event.clientX - rect.left) / rect.width) * 100
+    const rawY = ((event.clientY - rect.top) / rect.height) * 100
 
-  return (
-    <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">인물 목록</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button size="sm" variant={createOpen ? "secondary" : "outline"} onClick={() => (setCreateError(null), setCreateOpen((v) => !v))}>
-            {createOpen ? "닫기" : "인물 추가"}
-          </Button>
+    const nextX = Math.max(14, Math.min(86, rawX / zoom))
+    const nextY = Math.max(12, Math.min(88, rawY / zoom))
 
-          {createOpen && (
-            <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="이름" />
-              <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="역할(선택)" />
-              {createError && <div className="text-sm text-red-600">{createError}</div>}
-              <Button size="sm" disabled={!name.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
-                {createMutation.isPending ? "추가 중..." : "등록"}
-              </Button>
-            </div>
-          )}
-
-          <Separator />
-
-          {charactersQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-          {!charactersQuery.isLoading && characters.length === 0 && (
-            <div className="text-sm text-muted-foreground">아직 등록된 인물이 없습니다.</div>
-          )}
-          <div className="space-y-2">
-            {characters.map((c) => (
-              <button
-                key={c.id}
-                className={`w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/30 ${selectedId === String(c.id) ? "border-primary" : ""}`}
-                onClick={() => setSelectedId(String(c.id))}
-              >
-                <div className="font-medium truncate">{c.name}</div>
-                <div className="text-xs text-muted-foreground truncate">{c.role || "역할 없음"}</div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <CharacterDetail
-        projectId={projectId}
-        character={selected}
-        onDeleted={(id) => deleteMutation.mutate(id)}
-        deleting={deleteMutation.isPending}
-      />
-    </div>
-  )
-}
-
-function parseJsonObject(text: string): Record<string, any> | null {
-  const trimmed = text.trim()
-  if (!trimmed) return {}
-  try {
-    const parsed = JSON.parse(trimmed)
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, any>
-    return null
-  } catch {
-    return null
+    setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, x: nextX, y: nextY } : node)))
   }
-}
 
-function CharacterDetail({
-  projectId,
-  character,
-  onDeleted,
-  deleting,
-}: {
-  projectId: string
-  character: any | null
-  onDeleted: (id: string) => void
-  deleting: boolean
-}) {
-  const qc = useQueryClient()
-  const [form, setForm] = useState<{
-    name: string
-    role: string
-    backstory: string
-    speechSample: string
-    imageUrl: string
-    profileJson: string
-    appearanceJson: string
-    personalityJson: string
-  }>({
-    name: "",
-    role: "",
-    backstory: "",
-    speechSample: "",
-    imageUrl: "",
-    profileJson: "{}",
-    appearanceJson: "{}",
-    personalityJson: "{}",
-  })
-  const [error, setError] = useState<string | null>(null)
-  const [dirty, setDirty] = useState(false)
+  const createNode = (payload: { name: string; role: string; summary: string }) => {
+    const nextId = `node-${nodeCounterRef.current}`
+    nodeCounterRef.current += 1
 
-  const selectedId = character?.id ? String(character.id) : null
+    const newNode: CharacterNode = {
+      id: nextId,
+      name: payload.name,
+      role: payload.role,
+      summary: payload.summary,
+      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(payload.name)}`,
+      traits: ["Adaptive", "Driven", "Curious"],
+      arc: `${payload.name}의 서사 흐름을 업데이트해 보세요.`,
+      ties: selectedNode ? [{ targetId: selectedNode.id, label: "ALLY", value: 70 }] : [],
+      x: 54,
+      y: 52,
+    }
 
-  useEffect(() => {
-    if (!character) return
-    setForm({
-      name: character.name ?? "",
-      role: character.role ?? "",
-      backstory: character.backstory ?? "",
-      speechSample: character.speechSample ?? "",
-      imageUrl: character.imageUrl ?? "",
-      profileJson: JSON.stringify(character.profile ?? {}, null, 2),
-      appearanceJson: JSON.stringify(character.appearance ?? {}, null, 2),
-      personalityJson: JSON.stringify(character.personality ?? {}, null, 2),
+    setNodes((prev) => {
+      if (!selectedNode) return [...prev, newNode]
+      return prev.map((node) => {
+        if (node.id !== selectedNode.id) return node
+        return {
+          ...node,
+          ties: [...node.ties, { targetId: newNode.id, label: "ALLY", value: 70 }],
+        }
+      }).concat(newNode)
     })
-    setError(null)
-    setDirty(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId])
 
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedId) return null
-      const profile = parseJsonObject(form.profileJson)
-      const appearance = parseJsonObject(form.appearanceJson)
-      const personality = parseJsonObject(form.personalityJson)
-      if (profile === null || appearance === null || personality === null) {
-        throw new ApiError("JSON 형식이 올바르지 않습니다.", 400, null)
-      }
-      setError(null)
-      return api.characters.update(selectedId, {
-        projectId,
-        name: form.name.trim(),
-        role: form.role.trim() || null,
-        backstory: form.backstory.trim() || null,
-        speechSample: form.speechSample.trim() || null,
-        imageUrl: form.imageUrl.trim() || null,
-        profile,
-        appearance,
-        personality,
-      })
-    },
-    onSuccess: async () => {
-      if (!selectedId) return
-      await qc.invalidateQueries({ queryKey: ["characters", projectId] })
-      setDirty(false)
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "저장에 실패했습니다."),
-  })
+    setSelectedId(newNode.id)
+    setIsAddModalOpen(false)
+  }
 
-  if (!character) {
-    return (
-      <Card className="min-h-[320px]">
-        <CardHeader>
-          <CardTitle className="text-base">인물 상세</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          왼쪽에서 인물을 선택하세요.
-        </CardContent>
-      </Card>
-    )
+  const resetLayout = () => {
+    setNodes(fallbackNodes)
+    setSelectedId(fallbackNodes[0].id)
+    setSearchText("")
+    setTieFilter("all")
+    setZoom(1)
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">인물 상세</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid gap-2 md:grid-cols-2">
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">이름</div>
-            <Input
-              value={form.name}
-              onChange={(e) => (setForm((p) => ({ ...p, name: e.target.value })), setDirty(true))}
-            />
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">역할</div>
-            <Input
-              value={form.role}
-              onChange={(e) => (setForm((p) => ({ ...p, role: e.target.value })), setDirty(true))}
-            />
-          </div>
+    <div className="-mx-6 -my-8 md:-mx-10 md:-my-10">
+      <AddNodeModal open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onCreate={createNode} />
+
+      <section className="border-b border-gray-200 bg-white px-6 py-10 md:px-14">
+        <h1 className="text-4xl font-bold text-[#111827]">마길초전 세계관- 관계성</h1>
+        <p className="mt-3 text-xl text-[#7d6f62]">내 세계관의 관계성을 자유롭게 커스텀해 볼까요? 🪄</p>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <CategoryLink href={`/projects/${projectId}`} label="전체 카테고리" icon={Map} />
+          <CategoryLink href={`/projects/${projectId}/glossary`} label="용어" icon={Globe} />
+          <CategoryLink href={`/projects/${projectId}/publishing`} label="역사" icon={History} />
+          <CategoryLink href={`/projects/${projectId}/planning`} label="관계성" icon={Users} active />
+          <CategoryLink href={`/projects/${projectId}/magic`} label="마법 체계" icon={Wand2} />
         </div>
+      </section>
 
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">배경(Backstory)</div>
-          <textarea
-            value={form.backstory}
-            onChange={(e) => (setForm((p) => ({ ...p, backstory: e.target.value })), setDirty(true))}
-            className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="과거사/목표/트라우마 등"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">말투 샘플</div>
-          <textarea
-            value={form.speechSample}
-            onChange={(e) => (setForm((p) => ({ ...p, speechSample: e.target.value })), setDirty(true))}
-            className="w-full min-h-20 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="예) “흥, 내가 왜…”"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">이미지 URL(선택)</div>
-          <Input
-            value={form.imageUrl}
-            onChange={(e) => (setForm((p) => ({ ...p, imageUrl: e.target.value })), setDirty(true))}
-            placeholder="https://..."
-          />
-        </div>
-
-        <Separator />
-
-        <div className="grid gap-3 lg:grid-cols-3">
-          <JsonBox
-            label="프로필(JSON)"
-            value={form.profileJson}
-            onChange={(v) => (setForm((p) => ({ ...p, profileJson: v })), setDirty(true))}
-          />
-          <JsonBox
-            label="외모(JSON)"
-            value={form.appearanceJson}
-            onChange={(v) => (setForm((p) => ({ ...p, appearanceJson: v })), setDirty(true))}
-          />
-          <JsonBox
-            label="성격(JSON)"
-            value={form.personalityJson}
-            onChange={(v) => (setForm((p) => ({ ...p, personalityJson: v })), setDirty(true))}
-          />
-        </div>
-
-        {error && <div className="text-sm text-red-600">{error}</div>}
-
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="outline"
-            disabled={deleting}
-            onClick={() => selectedId && onDeleted(selectedId)}
-          >
-            삭제
-          </Button>
-          <Button disabled={!dirty || updateMutation.isPending} onClick={() => updateMutation.mutate()}>
-            {updateMutation.isPending ? "저장 중..." : "저장"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function JsonBox({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="space-y-1">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full min-h-40 font-mono rounded-md border bg-background px-3 py-2 text-xs shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-        spellCheck={false}
-      />
-    </div>
-  )
-}
-
-function WorldTab({ projectId }: { projectId: string }) {
-  const qc = useQueryClient()
-
-  const worldQuery = useQuery({
-    queryKey: ["world-settings", projectId],
-    queryFn: () => api.worldSettings.list(projectId),
-  })
-  const items = useMemo(() => (worldQuery.data ?? []) as any[], [worldQuery.data])
-
-  const [createOpen, setCreateOpen] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected = useMemo(() => (selectedId ? items.find((w) => String(w.id) === selectedId) : null), [items, selectedId])
-
-  const [category, setCategory] = useState("")
-  const [title, setTitle] = useState("")
-  const [content, setContent] = useState("")
-  const [createError, setCreateError] = useState<string | null>(null)
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      setCreateError(null)
-      return api.worldSettings.create({
-        projectId,
-        category: category.trim() || "기타",
-        title: title.trim(),
-        content: content.trim() || undefined,
-      })
-    },
-    onSuccess: async (created) => {
-      await qc.invalidateQueries({ queryKey: ["world-settings", projectId] })
-      setSelectedId(String(created.id))
-      setCategory("")
-      setTitle("")
-      setContent("")
-      setCreateOpen(false)
-    },
-    onError: (err) => setCreateError(err instanceof ApiError ? err.message : "세계관 등록에 실패했습니다."),
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => api.worldSettings.delete(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["world-settings", projectId] })
-      setSelectedId(null)
-    },
-  })
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">세계관 목록</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button size="sm" variant={createOpen ? "secondary" : "outline"} onClick={() => (setCreateError(null), setCreateOpen((v) => !v))}>
-            {createOpen ? "닫기" : "설정 추가"}
-          </Button>
-
-          {createOpen && (
-            <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="카테고리(예: 지리/역사/마법)" />
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="내용(선택)"
-                className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              {createError && <div className="text-sm text-red-600">{createError}</div>}
-              <Button size="sm" disabled={!title.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
-                {createMutation.isPending ? "추가 중..." : "등록"}
-              </Button>
-            </div>
-          )}
-
-          <Separator />
-
-          {worldQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-          {!worldQuery.isLoading && items.length === 0 && (
-            <div className="text-sm text-muted-foreground">아직 등록된 세계관 항목이 없습니다.</div>
-          )}
-          <div className="space-y-2">
-            {items.map((w) => (
+      <section className={inspectorOpen ? "grid min-h-[760px] lg:grid-cols-[1fr_320px]" : "min-h-[760px]"}>
+        <div className="relative border-r border-gray-200 bg-[#f3eee7]">
+          <div className="flex h-full">
+            <div className="flex w-16 flex-col items-center border-r border-[#ded4c8] py-5">
               <button
-                key={w.id}
-                className={`w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/30 ${selectedId === String(w.id) ? "border-primary" : ""}`}
-                onClick={() => setSelectedId(String(w.id))}
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="mb-5 rounded-xl bg-[#f97316] p-2.5 text-white shadow-md"
               >
-                <div className="font-medium truncate">{w.title}</div>
-                <div className="text-xs text-muted-foreground truncate">{w.category || "기타"}</div>
+                <Plus className="h-5 w-5" />
               </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <button type="button" className="mb-4 rounded-lg p-2 text-[#9a8d7f] hover:bg-white">
+                <Sparkles className="h-5 w-5" />
+              </button>
+              <button type="button" className="mb-4 rounded-lg p-2 text-[#9a8d7f] hover:bg-white">
+                <Layers className="h-5 w-5" />
+              </button>
+              <button type="button" className="mt-auto rounded-lg p-2 text-[#9a8d7f] hover:bg-white">
+                <Search className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom((prev) => Math.min(1.4, Number((prev + 0.1).toFixed(2))))}
+                className="mt-2 rounded-lg p-2 text-[#9a8d7f] hover:bg-white"
+              >
+                <ZoomIn className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom((prev) => Math.max(0.8, Number((prev - 0.1).toFixed(2))))}
+                className="mt-2 rounded-lg p-2 text-[#9a8d7f] hover:bg-white"
+              >
+                <ZoomOut className="h-5 w-5" />
+              </button>
+            </div>
 
-      <WorldDetail
-        projectId={projectId}
-        item={selected}
-        deleting={deleteMutation.isPending}
-        onDeleted={(id) => deleteMutation.mutate(id)}
-      />
-    </div>
-  )
-}
-
-function WorldDetail({
-  projectId,
-  item,
-  deleting,
-  onDeleted,
-}: {
-  projectId: string
-  item: any | null
-  deleting: boolean
-  onDeleted: (id: string) => void
-}) {
-  const qc = useQueryClient()
-  const [form, setForm] = useState<{ category: string; title: string; content: string }>({ category: "", title: "", content: "" })
-  const [dirty, setDirty] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const id = item?.id ? String(item.id) : null
-
-  useEffect(() => {
-    if (!item) return
-    setForm({
-      category: item.category ?? "",
-      title: item.title ?? "",
-      content: item.content ?? "",
-    })
-    setDirty(false)
-    setError(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
-
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!id) return null
-      setError(null)
-      return api.worldSettings.update(id, {
-        projectId,
-        category: form.category.trim() || "기타",
-        title: form.title.trim(),
-        content: form.content.trim() || null,
-      })
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["world-settings", projectId] })
-      setDirty(false)
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "저장에 실패했습니다."),
-  })
-
-  if (!item) {
-    return (
-      <Card className="min-h-[320px]">
-        <CardHeader>
-          <CardTitle className="text-base">세계관 상세</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          왼쪽에서 항목을 선택하세요.
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">세계관 상세</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid gap-2 md:grid-cols-2">
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">카테고리</div>
-            <Input value={form.category} onChange={(e) => (setForm((p) => ({ ...p, category: e.target.value })), setDirty(true))} />
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">제목</div>
-            <Input value={form.title} onChange={(e) => (setForm((p) => ({ ...p, title: e.target.value })), setDirty(true))} />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">내용</div>
-          <textarea
-            value={form.content}
-            onChange={(e) => (setForm((p) => ({ ...p, content: e.target.value })), setDirty(true))}
-            className="w-full min-h-48 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </div>
-
-        {error && <div className="text-sm text-red-600">{error}</div>}
-
-        <div className="flex items-center justify-between gap-2">
-          <Button variant="outline" disabled={deleting} onClick={() => id && onDeleted(id)}>
-            삭제
-          </Button>
-          <Button disabled={!dirty || updateMutation.isPending} onClick={() => updateMutation.mutate()}>
-            {updateMutation.isPending ? "저장 중..." : "저장"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function RelationshipsTab({ projectId }: { projectId: string }) {
-  const qc = useQueryClient()
-
-  const charactersQuery = useQuery({
-    queryKey: ["characters", projectId],
-    queryFn: () => api.characters.list(projectId),
-  })
-  const characters = useMemo(() => (charactersQuery.data ?? []) as any[], [charactersQuery.data])
-
-  const relQuery = useQuery({
-    queryKey: ["relationships", projectId],
-    queryFn: () => api.relationships.list(projectId),
-  })
-  const relationships = useMemo(() => (relQuery.data ?? []) as any[], [relQuery.data])
-
-  const diagramCharacters = useMemo(() => {
-    return characters.map((c) => ({
-      id: String(c.id),
-      name: String(c.name ?? ""),
-      role: c.role ?? null,
-    }))
-  }, [characters])
-
-  const diagramRelationships = useMemo(() => {
-    return relationships.map((r) => ({
-      id: String(r.id),
-      characterAId: String(r.characterAId),
-      characterBId: String(r.characterBId),
-      relationType: r.relationType ?? null,
-      isBidirectional: r.isBidirectional ?? null,
-    }))
-  }, [relationships])
-
-  const [aId, setAId] = useState("")
-  const [bId, setBId] = useState("")
-  const [relationType, setRelationType] = useState("")
-  const [description, setDescription] = useState("")
-  const [bidirectional, setBidirectional] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      setError(null)
-      if (!aId || !bId) throw new ApiError("인물 A/B를 선택해 주세요.", 400, null)
-      if (aId === bId) throw new ApiError("인물 A와 B는 달라야 합니다.", 400, null)
-      return api.relationships.create({
-        projectId,
-        characterAId: aId,
-        characterBId: bId,
-        relationType: relationType.trim() || null,
-        description: description.trim() || null,
-        isBidirectional: bidirectional,
-      })
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["relationships", projectId] })
-      setRelationType("")
-      setDescription("")
-      setAId("")
-      setBId("")
-      setBidirectional(true)
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "관계 생성에 실패했습니다."),
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => api.relationships.delete(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["relationships", projectId] })
-    },
-  })
-
-  const nameById = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const c of characters) map.set(String(c.id), String(c.name ?? ""))
-    return map
-  }, [characters])
-
-  return (
-    <div className="space-y-4">
-      <Tabs defaultValue="diagram">
-        <TabsList>
-          <TabsTrigger value="diagram">드래그 관계도</TabsTrigger>
-          <TabsTrigger value="manage">관계 관리</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="diagram">
-          <RelationshipDiagram
-            projectId={projectId}
-            characters={diagramCharacters}
-            relationships={diagramRelationships}
-          />
-        </TabsContent>
-
-        <TabsContent value="manage">
-          <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">관계 추가</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">인물 A</div>
-                  <select
-                    className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                    value={aId}
-                    onChange={(e) => setAId(e.target.value)}
+            <div className="relative flex-1 p-6 md:p-8">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <div className="inline-flex rounded-xl border border-[#ddd4c8] bg-[#faf6f1] p-1 text-sm font-semibold text-[#7d6f62]">
+                  <button
+                    type="button"
+                    onClick={() => setTieFilter("all")}
+                    className={tieFilter === "all" ? "rounded-lg bg-white px-4 py-1.5 text-[#f97316] shadow-sm" : "rounded-lg px-4 py-1.5 hover:bg-white"}
                   >
-                    <option value="">선택</option>
-                    {characters.map((c) => (
-                      <option key={c.id} value={String(c.id)}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">인물 B</div>
-                  <select
-                    className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                    value={bId}
-                    onChange={(e) => setBId(e.target.value)}
+                    전체 관계
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTieFilter("ally")}
+                    className={tieFilter === "ally" ? "rounded-lg bg-white px-4 py-1.5 text-[#f97316] shadow-sm" : "rounded-lg px-4 py-1.5 hover:bg-white"}
                   >
-                    <option value="">선택</option>
-                    {characters.map((c) => (
-                      <option key={c.id} value={String(c.id)}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    동맹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTieFilter("rival")}
+                    className={tieFilter === "rival" ? "rounded-lg bg-white px-4 py-1.5 text-[#f97316] shadow-sm" : "rounded-lg px-4 py-1.5 hover:bg-white"}
+                  >
+                    대립
+                  </button>
                 </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">관계 유형</div>
-                  <Input value={relationType} onChange={(e) => setRelationType(e.target.value)} placeholder="예) 연인, 적대, 가족" />
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">설명(선택)</div>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-                    placeholder="관계의 배경/맥락"
-                  />
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={bidirectional} onChange={(e) => setBidirectional(e.target.checked)} />
-                  양방향 관계
-                </label>
-                {error && <div className="text-sm text-red-600">{error}</div>}
-                <Button disabled={createMutation.isPending} onClick={() => createMutation.mutate()}>
-                  {createMutation.isPending ? "생성 중..." : "추가"}
-                </Button>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">관계 목록</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {relQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-                {!relQuery.isLoading && relationships.length === 0 && (
-                  <div className="text-sm text-muted-foreground">아직 등록된 관계가 없습니다.</div>
-                )}
-                {relationships.map((r) => (
-                  <div key={r.id} className="rounded-md border p-3 text-sm flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">
-                        {nameById.get(String(r.characterAId)) || "?"} ↔ {nameById.get(String(r.characterBId)) || "?"}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {r.relationType || "유형 없음"} {r.isBidirectional ? "" : "(단방향)"}
-                      </div>
-                      {r.description && <div className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{r.description}</div>}
-                    </div>
-                    <Button size="sm" variant="ghost" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(String(r.id))}>
-                      삭제
-                    </Button>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a8d7f]" />
+                    <input
+                      value={searchText}
+                      onChange={(event) => setSearchText(event.target.value)}
+                      placeholder="노드 검색"
+                      className="h-10 rounded-xl border border-[#ddd4c8] bg-white pl-9 pr-3 text-sm outline-none transition focus:border-[#f97316]"
+                    />
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
-
-function PlotsTab({ projectId }: { projectId: string }) {
-  const qc = useQueryClient()
-
-  const plotsQuery = useQuery({
-    queryKey: ["plots", projectId],
-    queryFn: () => api.plots.list(projectId),
-  })
-  const plots = useMemo(() => (plotsQuery.data ?? []) as any[], [plotsQuery.data])
-
-  const [createOpen, setCreateOpen] = useState(false)
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [viewMode, setViewMode] = useState<"timeline" | "three_act" | "snowflake" | "list">("timeline")
-  const [createError, setCreateError] = useState<string | null>(null)
-
-  const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null)
-  const selectedPlot = useMemo(() => (selectedPlotId ? plots.find((p) => String(p.id) === selectedPlotId) : null), [plots, selectedPlotId])
-
-  const createPlot = useMutation({
-    mutationFn: async () => {
-      setCreateError(null)
-      return api.plots.create({
-        projectId,
-        title: title.trim(),
-        description: description.trim() || null,
-        metadata: { view: viewMode },
-      })
-    },
-    onSuccess: async (created) => {
-      await qc.invalidateQueries({ queryKey: ["plots", projectId] })
-      setSelectedPlotId(String(created.id))
-      setTitle("")
-      setDescription("")
-      setCreateOpen(false)
-    },
-    onError: (err) => setCreateError(err instanceof ApiError ? err.message : "플롯 생성에 실패했습니다."),
-  })
-
-  const deletePlot = useMutation({
-    mutationFn: async (id: string) => api.plots.delete(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["plots", projectId] })
-      setSelectedPlotId(null)
-    },
-  })
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">플롯</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button size="sm" variant={createOpen ? "secondary" : "outline"} onClick={() => (setCreateError(null), setCreateOpen((v) => !v))}>
-            {createOpen ? "닫기" : "플롯 추가"}
-          </Button>
-
-          {createOpen && (
-            <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="플롯 이름" />
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="설명(선택)"
-                className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">뷰 모드</div>
-                <select
-                  className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                  value={viewMode}
-                  onChange={(e) => setViewMode(e.target.value as any)}
-                >
-                  <option value="timeline">타임라인</option>
-                  <option value="list">리스트</option>
-                  <option value="three_act">3막 구조</option>
-                  <option value="snowflake">스노우플레이크</option>
-                </select>
+                  <div className="rounded-lg border border-[#ddd4c8] bg-white px-3 py-2 text-xs font-bold text-[#7d6f62]">{Math.round(zoom * 100)}%</div>
+                </div>
               </div>
-              {createError && <div className="text-sm text-red-600">{createError}</div>}
-              <Button size="sm" disabled={!title.trim() || createPlot.isPending} onClick={() => createPlot.mutate()}>
-                {createPlot.isPending ? "추가 중..." : "등록"}
-              </Button>
-            </div>
-          )}
 
-          <Separator />
+              <div ref={canvasRef} className="relative h-[620px] overflow-hidden rounded-2xl border border-[#ddd4c8] bg-[#fdfbf7]">
+                <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${zoom})` }}>
+                  <EdgeLines
+                    nodes={nodes}
+                    selectedId={activeSelectedId}
+                    tieFilter={tieFilter}
+                    visibleNodeIds={visibleNodeIds}
+                  />
 
-          {plotsQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-          {!plotsQuery.isLoading && plots.length === 0 && (
-            <div className="text-sm text-muted-foreground">아직 플롯이 없습니다.</div>
-          )}
-          <div className="space-y-2">
-            {plots.map((p) => (
-              <button
-                key={p.id}
-                className={`w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/30 ${selectedPlotId === String(p.id) ? "border-primary" : ""}`}
-                onClick={() => setSelectedPlotId(String(p.id))}
-              >
-                <div className="font-medium truncate">{p.title}</div>
-                <div className="text-xs text-muted-foreground truncate">{p.description || ""}</div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                  {visibleNodes.map((node) => {
+                    const active = activeSelectedId === node.id
 
-      <PlotDetail
-        projectId={projectId}
-        plot={selectedPlot}
-        deleting={deletePlot.isPending}
-        onDelete={(id) => deletePlot.mutate(id)}
-      />
-    </div>
-  )
-}
-
-function PlotDetail({
-  projectId,
-  plot,
-  deleting,
-  onDelete,
-}: {
-  projectId: string
-  plot: any | null
-  deleting: boolean
-  onDelete: (id: string) => void
-}) {
-  const qc = useQueryClient()
-  const plotId = plot?.id ? String(plot.id) : null
-
-  const pointsQuery = useQuery({
-    queryKey: ["plot-points", plotId],
-    queryFn: () => (plotId ? api.plotPoints.list(plotId) : Promise.resolve([])),
-    enabled: !!plotId,
-  })
-  const points = useMemo(() => (pointsQuery.data ?? []) as any[], [pointsQuery.data])
-
-  const [pointTitle, setPointTitle] = useState("")
-  const [pointDesc, setPointDesc] = useState("")
-  const [pointOrder, setPointOrder] = useState<number>(0)
-  const [error, setError] = useState<string | null>(null)
-
-  const createPoint = useMutation({
-    mutationFn: async () => {
-      if (!plotId) return null
-      setError(null)
-      return api.plotPoints.create({
-        plotId,
-        title: pointTitle.trim(),
-        description: pointDesc.trim() || null,
-        orderIndex: Number.isFinite(pointOrder) ? pointOrder : 0,
-      })
-    },
-    onSuccess: async () => {
-      if (!plotId) return
-      await qc.invalidateQueries({ queryKey: ["plot-points", plotId] })
-      setPointTitle("")
-      setPointDesc("")
-      setPointOrder(0)
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "플롯 포인트 생성에 실패했습니다."),
-  })
-
-  const deletePoint = useMutation({
-    mutationFn: async (id: string) => api.plotPoints.delete(id),
-    onSuccess: async () => {
-      if (!plotId) return
-      await qc.invalidateQueries({ queryKey: ["plot-points", plotId] })
-    },
-  })
-
-  if (!plot) {
-    return (
-      <Card className="min-h-[320px]">
-        <CardHeader>
-          <CardTitle className="text-base">플롯 상세</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          왼쪽에서 플롯을 선택하세요.
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">플롯 상세</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-semibold truncate">{plot.title}</div>
-            {plot.description && <div className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{plot.description}</div>}
-          </div>
-          <Button variant="outline" disabled={deleting} onClick={() => plotId && onDelete(plotId)}>
-            삭제
-          </Button>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <div className="font-medium text-sm">플롯 포인트</div>
-          <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
-            <Input value={pointTitle} onChange={(e) => setPointTitle(e.target.value)} placeholder="포인트 제목" />
-            <Input
-              value={String(pointOrder)}
-              onChange={(e) => setPointOrder(Number(e.target.value))}
-              placeholder="순서(숫자)"
-            />
-            <textarea
-              value={pointDesc}
-              onChange={(e) => setPointDesc(e.target.value)}
-              placeholder="설명(선택)"
-              className="w-full min-h-20 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            {error && <div className="text-sm text-red-600">{error}</div>}
-            <Button size="sm" disabled={!pointTitle.trim() || createPoint.isPending} onClick={() => createPoint.mutate()}>
-              {createPoint.isPending ? "추가 중..." : "추가"}
-            </Button>
-          </div>
-
-          {pointsQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-          {!pointsQuery.isLoading && points.length === 0 && (
-            <div className="text-sm text-muted-foreground">아직 포인트가 없습니다.</div>
-          )}
-          <div className="space-y-2">
-            {points
-              .slice()
-              .sort((a, b) => Number(a.orderIndex ?? 0) - Number(b.orderIndex ?? 0))
-              .map((pt) => (
-                <div key={pt.id} className="rounded-md border p-3 text-sm flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">
-                      {pt.orderIndex ?? 0}. {pt.title}
-                    </div>
-                    {pt.description && <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{pt.description}</div>}
-                  </div>
-                  <Button size="sm" variant="ghost" disabled={deletePoint.isPending} onClick={() => deletePoint.mutate(String(pt.id))}>
-                    삭제
-                  </Button>
+                    return (
+                      <button
+                        key={node.id}
+                        type="button"
+                        onClick={() => setSelectedId(node.id)}
+                        onPointerDown={(event) => {
+                          setDraggingNodeId(node.id)
+                          event.currentTarget.setPointerCapture(event.pointerId)
+                        }}
+                        onPointerMove={(event) => updateNodePosition(event, node.id)}
+                        onPointerUp={() => setDraggingNodeId(null)}
+                        onPointerCancel={() => setDraggingNodeId(null)}
+                        style={{
+                          left: `calc(${node.x}% - 120px)`,
+                          top: `calc(${node.y}% - 50px)`,
+                        }}
+                        className={active
+                          ? "absolute w-[240px] rounded-2xl border-2 border-[#f97316] bg-white p-4 text-left shadow-lg"
+                          : "absolute w-[240px] rounded-2xl border border-[#d8cec3] bg-white p-4 text-left shadow-sm"
+                        }
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={node.avatar} alt={node.name} className="h-10 w-10 rounded-lg border border-gray-200 object-cover" />
+                          <div className="min-w-0">
+                            <div className="truncate text-lg font-bold text-[#1f2937]">{node.name}</div>
+                            <div className={active ? "inline-flex rounded-full bg-[#fff0e6] px-2 py-0.5 text-[10px] font-bold text-[#f97316]" : "inline-flex rounded-full bg-[#f3eee7] px-2 py-0.5 text-[10px] font-bold text-[#9a8d7f]"}>
+                              {node.role}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between text-xs font-semibold text-[#9a8d7f]">
+                          <span>{node.ties.length}개 관계</span>
+                          <span className="text-[#f97316]">노드 편집</span>
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
-              ))}
+
+                <div className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-xl border border-[#ddd4c8] bg-white p-2 shadow-sm">
+                  <button type="button" className="rounded-md p-2 text-[#9a8d7f] hover:bg-[#faf6f1]">
+                    <Download className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={resetLayout} className="rounded-md p-2 text-[#9a8d7f] hover:bg-[#faf6f1]">
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {inspectorOpen && (
+          <aside className="border-l border-gray-200 bg-[#faf6f1] p-5">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+              <div className="flex items-center gap-2 text-sm font-bold tracking-wide text-[#111827]">
+                <CircleAlert className="h-4 w-4 text-[#f97316]" />
+                노드 정보 패널
+              </div>
+              <button type="button" onClick={() => setInspectorOpen(false)} className="rounded-lg p-1 text-[#9a8d7f] hover:bg-white">✕</button>
+            </div>
+
+            {selectedNode && (
+              <>
+                <div className="mt-6 flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={selectedNode.avatar} alt={selectedNode.name} className="h-16 w-16 rounded-2xl border border-[#f97316] object-cover" />
+                    <div>
+                      <h3 className="text-2xl font-bold text-[#111827]">{selectedNode.name}</h3>
+                    </div>
+                  </div>
+                  <button type="button" className="rounded-lg bg-[#f3eee7] p-2 text-[#f97316]">
+                    <PenLine className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <p className="mt-3 text-sm leading-6 text-[#7d6f62]">{selectedNode.summary}</p>
+
+                <div className="mt-6">
+                  <div className="mb-2 flex items-center justify-between text-xs font-bold tracking-wider text-[#9a8d7f]">
+                    <span>캐릭터 성향</span>
+                    <button type="button" className="text-[#f97316]">+ 추가</button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedNode.traits.map((trait) => (
+                      <span key={trait} className="rounded-full bg-[#f3eee7] px-3 py-1 text-xs font-semibold text-[#334155]">{trait}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-7">
+                  <h4 className="text-xs font-bold tracking-wider text-[#9a8d7f]">활성 관계</h4>
+                  <div className="mt-3 space-y-3">
+                    {relationshipCards.map(({ tie, target }) => {
+                      const tone = relationshipTone(tie.label)
+
+                      return (
+                        <div key={`${selectedNode.id}-${target.id}`} className="rounded-xl border border-[#e4dbd1] bg-white p-3">
+                          <div className="mb-2 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-[#111827]">
+                              <span className="h-2.5 w-2.5 rounded-full bg-[#1f2937]" />
+                              {target.name}
+                            </div>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tone.pill}`}>{relationshipLabel(tie.label)}</span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-[#e2d9cf]">
+                            <div className={`h-1.5 ${tone.bar}`} style={{ width: `${tie.value}%` }} />
+                          </div>
+                          <div className="mt-2 text-right text-[10px] font-bold text-[#9a8d7f]">{tone.tag}: {tie.value}%</div>
+                        </div>
+                      )
+                    })}
+                    {relationshipCards.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-[#d8cec3] bg-white p-3 text-xs text-[#9a8d7f]">
+                        선택한 필터 기준 관계가 없습니다.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-7">
+                  <h4 className="text-xs font-bold tracking-wider text-[#9a8d7f]">서사 궤적</h4>
+                  <div className="mt-3 rounded-xl border border-[#e4dbd1] bg-[#f8f4ee] p-4 text-sm leading-6 text-[#475569]">
+                    {selectedNode.arc}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setGeneratedAt(new Date().toLocaleTimeString())}
+                  className="mt-6 w-full rounded-2xl bg-[#f97316] py-3 font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                >
+                  관계 생성하기
+                </button>
+                {generatedAt && <p className="mt-2 text-center text-xs text-[#9a8d7f]">마지막 생성 {generatedAt}</p>}
+              </>
+            )}
+          </aside>
+        )}
+      </section>
+
+      {!inspectorOpen && (
+        <div className="fixed bottom-6 right-6">
+          <button
+            type="button"
+            onClick={() => setInspectorOpen(true)}
+            className="rounded-full bg-[#8f7f6f] px-4 py-2 text-sm font-semibold text-white shadow-lg"
+          >
+            정보 패널 열기
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

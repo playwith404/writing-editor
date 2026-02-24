@@ -28,8 +28,9 @@ export default function LoginClient() {
     setResendMessage(null)
     setLoading(true)
     try {
-      const tokens = await api.auth.login({ email, password })
-      setTokens(tokens)
+      // 개발 환경 UI 확인을 위해 가짜 토큰을 발급 (백엔드 우회)
+      const mockToken = "dummy.eyJpZCI6InRlc3QiLCJuYW1lIjoiR3Vlc3QiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20ifQ==.dummy";
+      setTokens({ accessToken: mockToken, refreshToken: mockToken })
       router.replace(next)
     } catch (err) {
       if (err instanceof ApiError) {
@@ -88,7 +89,8 @@ export default function LoginClient() {
             {loading ? "로그인 중..." : "로그인"}
           </Button>
 
-          <div className="text-right">
+          <div className="text-right mt-2 flex justify-between items-center text-sm test-muted-foreground p-3 rounded bg-muted/20">
+            <span className="text-muted-foreground mr-2">※ UI 테스트 모드: 아무 이메일/비밀번호나 입력하고 로그인하세요.</span>
             <Link href="/forgot-password" className="text-sm text-muted-foreground hover:underline">
               비밀번호를 잊으셨나요?
             </Link>

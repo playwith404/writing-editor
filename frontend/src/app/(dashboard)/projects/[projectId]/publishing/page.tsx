@@ -1,229 +1,405 @@
 "use client"
 
 import { useParams } from "next/navigation"
-import { useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMemo, useRef, useState } from "react"
+import type { FormEvent } from "react"
+import {
+  Download,
+  Link2,
+  Minus,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react"
 
-import { api, ApiError } from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
+type ActKey = "act1" | "act2" | "act3"
 
-export default function PublishingPage() {
-  const params = useParams<{ projectId: string }>()
-  const projectId = params.projectId
+type Scene = {
+  id: string
+  beat: string
+  title: string
+  description: string
+  words: number
+  linked: string
+  done: boolean
+}
 
-  const qc = useQueryClient()
-
-  const documentsQuery = useQuery({
-    queryKey: ["documents", projectId],
-    queryFn: () => api.documents.list(projectId),
-  })
-  const documents = useMemo(() => (documentsQuery.data ?? []) as any[], [documentsQuery.data])
-
-  const exportsQuery = useQuery({
-    queryKey: ["publishing-exports", projectId],
-    queryFn: () => api.publishing.list(projectId),
-  })
-  const exportsList = useMemo(() => (exportsQuery.data ?? []) as any[], [exportsQuery.data])
-
-  const [exportFormat, setExportFormat] = useState("kakaopage")
-  const [documentId, setDocumentId] = useState<string>("")
-  const [createError, setCreateError] = useState<string | null>(null)
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      setCreateError(null)
-      return api.publishing.create({
-        projectId,
-        exportFormat,
-        documentId: documentId || undefined,
-      })
+const initialScenes: Record<ActKey, Scene[]> = {
+  act1: [
+    {
+      id: "act1-scene1",
+      beat: "BEAT 01",
+      title: "주인공의 일상",
+      description: "마길초의 일상과 주변 인물의 기본 관계를 소개한다.",
+      words: 860,
+      linked: "연결된 회차: 프롤로그",
+      done: true,
     },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["publishing-exports", projectId] })
+    {
+      id: "act1-scene2",
+      beat: "BEAT 02",
+      title: "사건의 시작",
+      description: "평온하던 흐름이 무너지며 갈등의 전조가 시작된다.",
+      words: 920,
+      linked: "연결된 회차: 1화",
+      done: true,
     },
-    onError: (err) => setCreateError(err instanceof ApiError ? err.message : "내보내기 생성에 실패했습니다."),
-  })
+  ],
+  act2: [
+    {
+      id: "act2-scene4",
+      beat: "BEAT 04",
+      title: "취업을 한 마길초",
+      description: "마길초는 면량 청인의 회사에 취직을 했다.",
+      words: 1200,
+      linked: "연결된 회차: 마길초전 1",
+      done: true,
+    },
+    {
+      id: "act2-scene5",
+      beat: "BEAT 05 (ACTIVE)",
+      title: "회사의 정체",
+      description: "고층빌딩 외벽을 청소하는 일을 하게 된 마길초였다.",
+      words: 1200,
+      linked: "연결된 회차: 마길초전 2",
+      done: true,
+    },
+    {
+      id: "act2-scene6",
+      beat: "BEAT 06",
+      title: "일을 하는 마길초",
+      description: "마길초는 누구보다 열심히 일을 했다.",
+      words: 900,
+      linked: "연결된 회차가 없습니다.",
+      done: false,
+    },
+  ],
+  act3: [
+    {
+      id: "act3-scene1",
+      beat: "BEAT 07",
+      title: "진실과 대면",
+      description: "숨겨진 정체가 드러나고 인물들의 선택이 갈라진다.",
+      words: 1400,
+      linked: "연결된 회차: 10화",
+      done: false,
+    },
+  ],
+}
 
-  const [deliverId, setDeliverId] = useState<string | null>(null)
-  const [deliverTo, setDeliverTo] = useState("")
-  const [deliverSubject, setDeliverSubject] = useState("")
-  const [deliverMessage, setDeliverMessage] = useState("")
-  const [deliverError, setDeliverError] = useState<string | null>(null)
+function AddSceneModal({
+  open,
+  onClose,
+  onCreate,
+}: {
+  open: boolean
+  onClose: () => void
+  onCreate: (scene: { beat: string; title: string; description: string; linked: string }) => void
+}) {
+  const [beat, setBeat] = useState("")
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [linked, setLinked] = useState("")
 
-  const deliverMutation = useMutation({
-    mutationFn: async () => {
-      if (!deliverId) return null
-      setDeliverError(null)
-      if (!deliverTo.trim()) throw new ApiError("받는 사람 이메일(to)이 필요합니다.", 400, null)
-      return api.publishing.deliver(deliverId, {
-        type: "email",
-        to: deliverTo.trim(),
-        subject: deliverSubject.trim() || undefined,
-        message: deliverMessage.trim() || undefined,
-      })
-    },
-    onSuccess: async () => {
-      setDeliverId(null)
-      setDeliverTo("")
-      setDeliverSubject("")
-      setDeliverMessage("")
-      await qc.invalidateQueries({ queryKey: ["publishing-exports", projectId] })
-    },
-    onError: (err) => setDeliverError(err instanceof ApiError ? err.message : "이메일 전달에 실패했습니다."),
-  })
+  if (!open) return null
 
-  const downloadMutation = useMutation({
-    mutationFn: async (id: string) => api.publishing.download(id),
-    onSuccess: (res) => {
-      const url = URL.createObjectURL(res.blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = res.filename || "gleey-export"
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    },
-  })
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!title.trim()) return
+
+    onCreate({
+      beat: beat.trim() || "BEAT NEW",
+      title: title.trim(),
+      description: description.trim() || "새로운 플롯 포인트 설명을 입력해 주세요.",
+      linked: linked.trim() || "연결된 회차가 없습니다.",
+    })
+
+    setBeat("")
+    setTitle("")
+    setDescription("")
+    setLinked("")
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">퍼블리싱</h2>
-        <p className="text-sm text-muted-foreground">파일로 내보내고, 이메일로 전달할 수 있습니다.</p>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-xl rounded-3xl border border-[#ddd4c8] bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-[#111827]">New Plot Point</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-[#9a8d7f] hover:bg-[#f8f4ee]" aria-label="close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">내보내기 생성</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-2 lg:grid-cols-3">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">포맷</div>
-              <select
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value)}
-              >
-                <option value="kakaopage">카카오페이지</option>
-                <option value="novelpia">노블피아(Markdown)</option>
-                <option value="munpia">문피아</option>
-                <option value="markdown">Markdown</option>
-                <option value="txt">TXT</option>
-                <option value="epub">EPUB</option>
-              </select>
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#334155]">Beat</label>
+              <input
+                value={beat}
+                onChange={(event) => setBeat(event.target.value)}
+                placeholder="BEAT 08"
+                className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#f97316]"
+              />
             </div>
-            <div className="space-y-1 lg:col-span-2">
-              <div className="text-xs text-muted-foreground">문서 선택(선택)</div>
-              <select
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-                value={documentId}
-                onChange={(e) => setDocumentId(e.target.value)}
-              >
-                <option value="">전체 문서</option>
-                {documents.map((d) => (
-                  <option key={d.id} value={String(d.id)}>
-                    {d.title}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#334155]">Linked Episode</label>
+              <input
+                value={linked}
+                onChange={(event) => setLinked(event.target.value)}
+                placeholder="연결된 회차: 12화"
+                className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#f97316]"
+              />
             </div>
           </div>
-
-          {createError && <div className="text-sm text-red-600">{createError}</div>}
-          <Button disabled={createMutation.isPending} onClick={() => createMutation.mutate()}>
-            {createMutation.isPending ? "생성 중..." : "내보내기 생성"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {deliverId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">이메일 전달</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Input value={deliverTo} onChange={(e) => setDeliverTo(e.target.value)} placeholder="받는 사람 이메일" />
-            <Input value={deliverSubject} onChange={(e) => setDeliverSubject(e.target.value)} placeholder="제목(선택)" />
-            <textarea
-              value={deliverMessage}
-              onChange={(e) => setDeliverMessage(e.target.value)}
-              placeholder="메시지(선택)"
-              className="w-full min-h-24 rounded-md border bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            {deliverError && <div className="text-sm text-red-600">{deliverError}</div>}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setDeliverId(null)} disabled={deliverMutation.isPending}>
-                취소
-              </Button>
-              <Button onClick={() => deliverMutation.mutate()} disabled={deliverMutation.isPending}>
-                {deliverMutation.isPending ? "전송 중..." : "전송"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">내보내기 목록</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {exportsQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-          {exportsQuery.isError && <div className="text-sm text-red-600">목록을 불러오지 못했습니다.</div>}
-          {!exportsQuery.isLoading && exportsList.length === 0 && (
-            <div className="text-sm text-muted-foreground">아직 내보내기 기록이 없습니다.</div>
-          )}
 
           <div className="space-y-2">
-            {exportsList.map((row) => (
-              <div key={row.id} className="rounded-md border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">
-                      {row.exportFormat || "포맷"} · {row.status || "queued"}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1 truncate">
-                      {row.fileUrl || ""}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={row.status !== "completed" || downloadMutation.isPending}
-                      onClick={() => downloadMutation.mutate(String(row.id))}
-                    >
-                      다운로드
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={row.status !== "completed"}
-                      onClick={() => {
-                        setDeliverError(null)
-                        setDeliverId(String(row.id))
-                      }}
-                    >
-                      이메일
-                    </Button>
-                  </div>
-                </div>
-                {row.metadata?.error && (
-                  <>
-                    <Separator className="my-2" />
-                    <div className="text-sm text-red-600 whitespace-pre-wrap">{String(row.metadata.error)}</div>
-                  </>
-                )}
-              </div>
-            ))}
+            <label className="text-sm font-semibold text-[#334155]">Title</label>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="씬 제목"
+              className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#f97316]"
+            />
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-[#334155]">Description</label>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={4}
+              placeholder="씬 설명"
+              className="w-full rounded-xl border border-[#ddd4c8] px-3 py-2 text-sm outline-none transition focus:border-[#f97316]"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-[#ddd4c8] px-4 py-2 text-sm font-semibold text-[#7d6f62] hover:bg-[#faf6f1]"
+            >
+              취소
+            </button>
+            <button type="submit" className="rounded-xl bg-[#f97316] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ea580c]">
+              추가하기
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function SceneCard({
+  scene,
+  selected,
+  scale,
+  onSelect,
+}: {
+  scene: Scene
+  selected: boolean
+  scale: number
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={selected
+        ? "min-h-[260px] w-[290px] rounded-2xl border border-[#f97316] bg-white p-5 text-left shadow-[0_16px_30px_rgba(15,23,42,0.12)]"
+        : "min-h-[240px] w-[250px] rounded-2xl border border-[#d8dee9] bg-white p-4 text-left shadow-sm"
+      }
+      style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
+    >
+      <div className="mb-3 flex items-start justify-between">
+        <span className={selected
+          ? "rounded-full bg-[#f97316] px-3 py-1 text-xs font-bold text-white"
+          : "rounded-full bg-[#f3eee7] px-3 py-1 text-xs font-bold text-[#7d6f62]"
+        }>
+          {scene.beat}
+        </span>
+        <span className="text-[#9a8d7f]"><SlidersHorizontal className="h-4 w-4" /></span>
+      </div>
+
+      <h3 className="text-xl font-bold text-[#1f2937]">{scene.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[#7d6f62]">{scene.description}</p>
+
+      <div className="mt-4 rounded-lg bg-[#faf6f1] px-3 py-2 text-xs font-semibold text-[#f97316]">{scene.linked}</div>
+
+      <div className="mt-4 flex items-center justify-between text-xs font-bold">
+        <span className="text-[#f97316]">{(scene.words / 1000).toFixed(1)}K WORDS</span>
+        <span className={scene.done ? "text-[#10b981]" : "text-[#9a8d7f]"}>{scene.done ? "진행 완료" : "진행 대기"}</span>
+      </div>
+    </button>
+  )
+}
+
+export default function PlotTimelinePage() {
+  const params = useParams<{ projectId: string }>()
+  const projectId = params.projectId || "magilcho-jeon"
+
+  const [act, setAct] = useState<ActKey>("act2")
+  const [scenesByAct, setScenesByAct] = useState<Record<ActKey, Scene[]>>(initialScenes)
+  const [selectedSceneId, setSelectedSceneId] = useState<string>(initialScenes.act2[1]?.id ?? initialScenes.act2[0]?.id)
+  const [zoom, setZoom] = useState(100)
+  const [searchText, setSearchText] = useState("")
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const sceneCounterRef = useRef(10)
+
+  const title = `${projectId === "magilcho-jeon" ? "마길초전" : "마길초전"} 플롯 타임라인`
+
+  const scenes = scenesByAct[act]
+
+  const filteredScenes = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase()
+    if (!keyword) return scenes
+    return scenes.filter((scene) => scene.title.toLowerCase().includes(keyword) || scene.description.toLowerCase().includes(keyword))
+  }, [scenes, searchText])
+
+  const activeSceneId = useMemo(() => {
+    if (filteredScenes.some((scene) => scene.id === selectedSceneId)) {
+      return selectedSceneId
+    }
+    return filteredScenes[0]?.id ?? null
+  }, [filteredScenes, selectedSceneId])
+
+  const createScene = (payload: { beat: string; title: string; description: string; linked: string }) => {
+    const nextSceneId = `${act}-scene-${sceneCounterRef.current}`
+    sceneCounterRef.current += 1
+
+    const nextScene: Scene = {
+      id: nextSceneId,
+      beat: payload.beat,
+      title: payload.title,
+      description: payload.description,
+      linked: payload.linked,
+      words: 0,
+      done: false,
+    }
+
+    setScenesByAct((prev) => ({
+      ...prev,
+      [act]: [...prev[act], nextScene],
+    }))
+    setSelectedSceneId(nextScene.id)
+    setIsModalOpen(false)
+  }
+
+  const exportTimeline = () => {
+    const payload = {
+      act,
+      scenes: scenesByAct[act],
+      exportedAt: new Date().toISOString(),
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${projectId}-${act}-timeline.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="-mx-6 -my-8 md:-mx-10 md:-my-10">
+      <AddSceneModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onCreate={createScene} />
+
+      <section className="border-b border-gray-200 bg-[#f3eee7] px-6 py-12 md:px-14">
+        <h1 className="text-4xl font-bold text-[#111827]">{title}</h1>
+        <p className="mt-3 text-xl text-[#7d6f62]">나의 세계관을 자유롭게 커스텀해 볼까요? 🪄</p>
+      </section>
+
+      <section className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 bg-white px-6 py-3 md:px-8">
+        <div className="inline-flex items-center gap-6 text-base font-semibold">
+          <button type="button" onClick={() => setAct("act1")} className={act === "act1" ? "text-[#f97316]" : "text-[#9b8d80]"}>Act I: Setup</button>
+          <button type="button" onClick={() => setAct("act2")} className={act === "act2" ? "border-b-2 border-[#f97316] pb-2 text-[#f97316]" : "text-[#9b8d80]"}>Act II: Confrontation</button>
+          <button type="button" onClick={() => setAct("act3")} className={act === "act3" ? "text-[#f97316]" : "text-[#9b8d80]"}>Act III: Resolution</button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a8d7f]" />
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search scene"
+              className="h-11 rounded-xl border border-[#ddd4c8] bg-[#faf6f1] pl-9 pr-3 text-sm outline-none transition focus:border-[#f97316]"
+            />
+          </div>
+
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-[#ddd4c8] bg-[#faf6f1] px-3 text-[#9a8d7f]">
+            <button type="button" onClick={() => setZoom((prev) => Math.max(80, prev - 10))}><Minus className="h-4 w-4" /></button>
+            <input
+              type="range"
+              min={80}
+              max={130}
+              step={5}
+              value={zoom}
+              onChange={(event) => setZoom(Number(event.target.value))}
+              className="accent-[#f97316]"
+            />
+            <button type="button" onClick={() => setZoom((prev) => Math.min(130, prev + 10))}><Plus className="h-4 w-4" /></button>
+          </div>
+
+          <button
+            type="button"
+            onClick={exportTimeline}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#ddd4c8] bg-white px-4 py-2.5 text-sm font-bold text-[#1f2937] shadow-sm"
+          >
+            <Download className="h-4 w-4" /> Export
+          </button>
+        </div>
+      </section>
+
+      <section className="min-h-[610px] bg-[#fdfbf7] px-6 py-10 md:px-12">
+        <div className="flex flex-wrap items-start gap-10">
+          {filteredScenes.map((scene, index) => (
+            <div key={scene.id} className="flex flex-col items-center gap-4">
+              <div className={scene.id === selectedSceneId ? "h-8 w-8 rounded-full border-[5px] border-[#f97316] bg-[#ffd7be]" : "h-6 w-6 rounded-full border-4 border-[#f97316] bg-white"} />
+              <span className="text-xs font-bold tracking-wider text-[#f97316]">SCENE {index + 1}</span>
+              <SceneCard
+                scene={scene}
+                selected={scene.id === activeSceneId}
+                scale={zoom / 100}
+                onSelect={() => setSelectedSceneId(scene.id)}
+              />
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="flex h-[240px] w-[250px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#d7dde8] text-center text-[#a3b0c2] transition hover:bg-white"
+          >
+            <Plus className="mb-3 h-7 w-7" />
+            <span className="text-xs font-bold tracking-[0.2em]">NEW PLOT POINT</span>
+          </button>
+        </div>
+
+        {filteredScenes.length === 0 && (
+          <div className="mt-8 rounded-xl border border-dashed border-[#d7dde8] bg-white p-5 text-sm text-[#7d6f62]">
+            검색 조건에 맞는 씬이 없습니다.
+          </div>
+        )}
+      </section>
+
+      <footer className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-3 text-xs font-semibold tracking-wide text-[#7c8ea5] md:px-8">
+        <div className="flex items-center gap-6">
+          <span className="text-[#10b981]">● SYNC ACTIVE</span>
+          <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" /> 4 COLLABORATORS</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span>Last edited 3m ago</span>
+          <button type="button" className="rounded-full bg-[#f97316] px-4 py-2 text-[10px] font-bold text-white">
+            ANALYZE STRUCTURE
+          </button>
+        </div>
+      </footer>
     </div>
   )
 }

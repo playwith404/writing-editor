@@ -1,30 +1,25 @@
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/dashboard/app-sidebar"
-import { Separator } from "@/components/ui/separator"
+import Sidebar from "@/components/dashboard/Sidebar"
+import TopNav from "@/components/dashboard/TopNav"
 import { AuthGuard } from "@/components/auth/auth-guard"
 
 export default function DashboardLayout({
-    children,
+  children,
 }: {
-    children: React.ReactNode
+  children: React.ReactNode
 }) {
-    return (
-        <AuthGuard>
-            <SidebarProvider>
-                <AppSidebar />
-                <SidebarInset>
-                    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-                        <SidebarTrigger className="-ml-1" />
-                        <Separator orientation="vertical" className="mr-2 h-4" />
-                        <span className="font-medium text-sm">대시보드</span>
-                    </header>
-                    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-                        <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min p-4">
-                            {children}
-                        </div>
-                    </div>
-                </SidebarInset>
-            </SidebarProvider>
-        </AuthGuard>
-    )
+  return (
+    <AuthGuard>
+      <div className="dashboard-theme flex h-[100dvh] overflow-hidden bg-white font-sans text-gray-800">
+        <Sidebar />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <TopNav />
+          <main className="flex-1 overflow-y-auto bg-[#fdfbf7]">
+            <div className="mx-auto w-full px-6 py-8 md:px-10 md:py-10">
+              {children}
+            </div>
+          </main>
+        </div>
+      </div>
+    </AuthGuard>
+  )
 }

@@ -121,6 +121,44 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[#fbf8f2] text-[#0f172a];
+    font-family: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo",
+      "Noto Sans KR", "Pretendard", "Segoe UI", Roboto, Helvetica, Arial,
+      "Apple Color Emoji", "Segoe UI Emoji";
+  }
+}
+
+@layer components {
+  .dashboard-theme [data-slot="card"] {
+    border-color: #e5e7eb;
+    border-radius: 0.95rem;
+    box-shadow: 0 2px 10px -3px rgba(6, 81, 237, 0.06);
+  }
+
+  .dashboard-theme [data-slot="button"][data-variant="default"] {
+    background-color: #938274;
+    color: #fff;
+  }
+
+  .dashboard-theme [data-slot="button"][data-variant="default"]:hover {
+    background-color: #837365;
+  }
+
+  .dashboard-theme [data-slot="button"][data-variant="outline"] {
+    border-color: #d1d5db;
+    background-color: #fff;
+    color: #374151;
+  }
+
+  .dashboard-theme [data-slot="button"][data-variant="secondary"] {
+    background-color: #f5f4f1;
+    color: #6e6155;
+  }
+
+  .dashboard-theme input,
+  .dashboard-theme select,
+  .dashboard-theme textarea {
+    border-color: #d1d5db;
+    border-radius: 0.75rem;
   }
 }

@@ -1,585 +1,431 @@
 "use client"
 
+import Link from "next/link"
 import { useParams } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMemo, useRef, useState } from "react"
+import type { FormEvent } from "react"
+import { Filter, Plus, Search, X } from "lucide-react"
 
-import { api, ApiError } from "@/lib/api"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-
-function pct(current: number, target: number): number {
-  if (!Number.isFinite(current) || !Number.isFinite(target) || target <= 0) return 0
-  return Math.max(0, Math.min(100, Math.round((current / target) * 100)))
+type CharacterCard = {
+  id: string
+  name: string
+  role: string
+  archetype: string
+  tags: string[]
+  imageUrl: string
+  bio: string
 }
 
-function ProgressBar({ value }: { value: number }) {
-  const w = Math.max(0, Math.min(100, Math.round(value)))
+type RelationshipItem = {
+  id: string
+  source: string
+  target: string
+  label: "ALLY" | "RIVAL"
+  intensity: number
+}
+
+const fallbackCharacters: CharacterCard[] = [
+  {
+    id: "magilcho",
+    name: "마길초",
+    role: "주인공",
+    archetype: "상남자",
+    tags: ["Ambitious", "Reckless", "Brave"],
+    imageUrl: "https://api.dicebear.com/7.x/notionists/svg?seed=Magilcho&backgroundColor=f4d0c5",
+    bio: "불의를 보면 지나치지 못하는 성격으로, 위험을 감수하고서라도 진실을 파고드는 인물입니다.",
+  },
+  {
+    id: "song-eunchae",
+    name: "송은채",
+    role: "히로인",
+    archetype: "사업가",
+    tags: ["Loyal", "Sharp", "Agile"],
+    imageUrl: "https://api.dicebear.com/7.x/notionists/svg?seed=Eunchae&backgroundColor=cdebe6",
+    bio: "냉정한 판단력과 추진력을 갖춘 파트너로, 갈등 상황에서 균형점을 찾아내는 능력이 뛰어납니다.",
+  },
+]
+
+const fallbackRelationships: RelationshipItem[] = [
+  { id: "r1", source: "마길초", target: "송은채", label: "ALLY", intensity: 82 },
+  { id: "r2", source: "마길초", target: "실라스", label: "RIVAL", intensity: 95 },
+]
+
+function CharacterProfileCard({
+  character,
+  selected,
+  onClick,
+}: {
+  character: CharacterCard
+  selected: boolean
+  onClick: () => void
+}) {
   return (
-    <div className="h-2 rounded-full bg-muted overflow-hidden">
-      <div className="h-2 bg-primary" style={{ width: `${w}%` }} />
+    <button
+      type="button"
+      onClick={onClick}
+      className={selected
+        ? "overflow-hidden rounded-2xl border-2 border-[#f97316] bg-white text-left shadow-md transition"
+        : "overflow-hidden rounded-2xl border border-[#ded8cf] bg-white text-left shadow-sm transition hover:shadow-md"
+      }
+    >
+      <div className="relative h-[300px] bg-[#ead3bf]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={character.imageUrl} alt={character.name} className="h-full w-full object-cover" />
+        <span className="absolute right-3 top-3 rounded-lg bg-[#3b3b3b] px-2.5 py-1 text-xs font-bold text-white">
+          {character.role}
+        </span>
+      </div>
+
+      <div className="space-y-3 p-5">
+        <div>
+          <h3 className="text-2xl font-bold text-[#111827]">{character.name}</h3>
+          <p className="mt-1 text-sm text-[#7b6f62]">{character.archetype}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {character.tags.map((tag) => (
+            <span key={tag} className="rounded-full bg-[#f2f1ee] px-2.5 py-1 text-xs font-semibold text-[#6b7280]">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function CreateCharacterModal({
+  open,
+  onClose,
+  onCreate,
+}: {
+  open: boolean
+  onClose: () => void
+  onCreate: (character: { name: string; role: string; archetype: string; tags: string[] }) => void
+}) {
+  const [name, setName] = useState("")
+  const [role, setRole] = useState("등장인물")
+  const [archetype, setArchetype] = useState("")
+  const [tags, setTags] = useState("")
+
+  if (!open) return null
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!name.trim()) return
+
+    onCreate({
+      name: name.trim(),
+      role: role.trim() || "등장인물",
+      archetype: archetype.trim() || "미지정",
+      tags: tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 5),
+    })
+
+    setName("")
+    setRole("등장인물")
+    setArchetype("")
+    setTags("")
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-[#ddd4c8] bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-[#111827]">Create New Character</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-[#9a8d7f] hover:bg-[#f8f4ee]" aria-label="close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form className="space-y-4" onSubmit={submit}>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-[#334155]">이름</label>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="캐릭터 이름"
+              className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#8f7f6f]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#334155]">역할</label>
+              <input
+                value={role}
+                onChange={(event) => setRole(event.target.value)}
+                placeholder="주인공"
+                className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#8f7f6f]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#334155]">아키타입</label>
+              <input
+                value={archetype}
+                onChange={(event) => setArchetype(event.target.value)}
+                placeholder="모험가"
+                className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#8f7f6f]"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-[#334155]">태그 (쉼표 구분)</label>
+            <input
+              value={tags}
+              onChange={(event) => setTags(event.target.value)}
+              placeholder="Brave, Loyal"
+              className="h-11 w-full rounded-xl border border-[#ddd4c8] px-3 text-sm outline-none transition focus:border-[#8f7f6f]"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-[#ddd4c8] px-4 py-2 text-sm font-semibold text-[#7d6f62] hover:bg-[#faf6f1]"
+            >
+              취소
+            </button>
+            <button type="submit" className="rounded-xl bg-[#8f7f6f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7f6f60]">
+              생성하기
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
 
-export default function ProjectStatsPage() {
+export default function ProjectCharactersPage() {
   const params = useParams<{ projectId: string }>()
   const projectId = params.projectId
 
-  const [days, setDays] = useState(14)
+  const [tab, setTab] = useState<"profiles" | "relationships">("profiles")
+  const [characters, setCharacters] = useState<CharacterCard[]>(fallbackCharacters)
+  const [searchText, setSearchText] = useState("")
+  const [roleFilter, setRoleFilter] = useState<string>("all")
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string>(fallbackCharacters[0].id)
+  const characterCounterRef = useRef(fallbackCharacters.length + 1)
 
-  const summaryQuery = useQuery({
-    queryKey: ["stats", "project", projectId],
-    queryFn: () => api.stats.project(projectId),
-  })
+  const roles = useMemo(() => ["all", ...Array.from(new Set(characters.map((character) => character.role)))], [characters])
 
-  const dailyQuery = useQuery({
-    queryKey: ["stats", "dailyWords", projectId, days],
-    queryFn: () => api.stats.dailyWords(projectId, days),
-  })
+  const filteredCharacters = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase()
 
-  const rows = useMemo(() => ((dailyQuery.data?.series ?? []) as any[]), [dailyQuery.data?.series])
+    return characters.filter((character) => {
+      const matchedByKeyword =
+        keyword.length === 0 ||
+        character.name.toLowerCase().includes(keyword) ||
+        character.tags.some((tag) => tag.toLowerCase().includes(keyword))
+
+      const matchedByRole = roleFilter === "all" || character.role === roleFilter
+
+      return matchedByKeyword && matchedByRole
+    })
+  }, [characters, roleFilter, searchText])
+
+  const selectedCharacter = characters.find((character) => character.id === selectedCharacterId) ?? characters[0]
+
+  const createCharacter = (payload: { name: string; role: string; archetype: string; tags: string[] }) => {
+    const id = `character-${characterCounterRef.current}`
+    characterCounterRef.current += 1
+
+    const next: CharacterCard = {
+      id,
+      name: payload.name,
+      role: payload.role,
+      archetype: payload.archetype,
+      tags: payload.tags.length > 0 ? payload.tags : ["Adaptive", "Curious"],
+      imageUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(payload.name)}&backgroundColor=e8e4df`,
+      bio: `${payload.name}의 기본 소개가 아직 비어 있습니다. 설정을 추가해 주세요.`,
+    }
+
+    setCharacters((prev) => [...prev, next])
+    setSelectedCharacterId(id)
+    setIsCreateModalOpen(false)
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">스탯</h2>
-        <p className="text-sm text-muted-foreground">집필 진행률과 일별 글자 수를 확인합니다.</p>
-      </div>
+    <div className="-mx-6 -my-8 md:-mx-10 md:-my-10">
+      <CreateCharacterModal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onCreate={createCharacter} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">문서</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">{summaryQuery.data?.documents ?? 0}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">플롯</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">{summaryQuery.data?.plots ?? 0}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">총 단어</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {Number(summaryQuery.data?.wordCount ?? 0).toLocaleString()}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">기간</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">
-            <select
-              className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value))}
+      <section className="border-b border-gray-200 bg-white px-6 py-4 md:px-10">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="inline-flex items-center gap-5">
+            <button
+              type="button"
+              onClick={() => setTab("profiles")}
+              className={tab === "profiles"
+                ? "border-b-2 border-[#8f7f6f] pb-3 text-base font-bold text-[#1f2937]"
+                : "pb-3 text-base font-bold text-[#6b7280]"
+              }
             >
-              <option value={7}>최근 7일</option>
-              <option value={14}>최근 14일</option>
-              <option value={30}>최근 30일</option>
-              <option value={90}>최근 90일</option>
-            </select>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="daily">
-        <TabsList>
-          <TabsTrigger value="daily">일별 단어</TabsTrigger>
-          <TabsTrigger value="goals">목표</TabsTrigger>
-          <TabsTrigger value="character">캐릭터 스탯</TabsTrigger>
-        </TabsList>
-        <TabsContent value="daily">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">일별 단어 변화</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {dailyQuery.isLoading && <div className="text-muted-foreground">불러오는 중...</div>}
-              {dailyQuery.isError && <div className="text-red-600">통계를 불러오지 못했습니다.</div>}
-              {!dailyQuery.isLoading && rows.length === 0 && (
-                <div className="text-muted-foreground">표시할 데이터가 없습니다.</div>
-              )}
-              <div className="space-y-2">
-                {rows.map((r) => (
-                  <div key={r.date} className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <div className="text-muted-foreground">{String(r.date)}</div>
-                    <div className="font-medium">{Number(r.wordsDelta ?? 0).toLocaleString()} 단어</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="goals">
-          <GoalsTab projectId={projectId} />
-        </TabsContent>
-
-        <TabsContent value="character">
-          <CharacterStatsTab projectId={projectId} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
-
-function goalTypeLabel(goalType?: string) {
-  const key = (goalType ?? "").toLowerCase()
-  if (key === "daily") return "일일 목표"
-  if (key === "weekly") return "주간 목표"
-  if (key === "project") return "프로젝트 목표"
-  return goalType || "목표"
-}
-
-function GoalsTab({ projectId }: { projectId: string }) {
-  const qc = useQueryClient()
-
-  const goalsQuery = useQuery({
-    queryKey: ["writingGoals", projectId],
-    queryFn: () => api.writingGoals.list(projectId),
-  })
-
-  const goals = useMemo(() => (goalsQuery.data ?? []) as any[], [goalsQuery.data])
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const editing = useMemo(() => goals.find((g) => String(g.id) === String(editingId)), [goals, editingId])
-
-  const [goalType, setGoalType] = useState("daily")
-  const [targetWords, setTargetWords] = useState("1000")
-  const [dueDate, setDueDate] = useState("")
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!editing) return
-    setGoalType(editing.goalType ?? "daily")
-    setTargetWords(String(editing.targetWords ?? "1000"))
-    setDueDate(editing.dueDate ?? "")
-    setError(null)
-  }, [editing?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const createGoal = useMutation({
-    mutationFn: async () => {
-      setError(null)
-      return api.writingGoals.create({
-        projectId,
-        goalType,
-        targetWords: Number(targetWords || 0),
-        dueDate: dueDate || null,
-      })
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["writingGoals", projectId] })
-      setEditingId(null)
-      setGoalType("daily")
-      setTargetWords("1000")
-      setDueDate("")
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "목표 생성에 실패했습니다."),
-  })
-
-  const updateGoal = useMutation({
-    mutationFn: async () => {
-      if (!editingId) return null
-      setError(null)
-      return api.writingGoals.update(editingId, {
-        goalType,
-        targetWords: Number(targetWords || 0),
-        dueDate: dueDate || null,
-      })
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["writingGoals", projectId] })
-      setEditingId(null)
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "목표 수정에 실패했습니다."),
-  })
-
-  const deleteGoal = useMutation({
-    mutationFn: async (id: string) => api.writingGoals.delete(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["writingGoals", projectId] })
-      setEditingId(null)
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "목표 삭제에 실패했습니다."),
-  })
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">목표 설정</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-2">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">목표 유형</div>
-              <select
-                value={goalType}
-                onChange={(e) => setGoalType(e.target.value)}
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="daily">일일 목표</option>
-                <option value="weekly">주간 목표</option>
-                <option value="project">프로젝트 목표</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">목표 단어 수</div>
-              <Input value={targetWords} onChange={(e) => setTargetWords(e.target.value)} placeholder="예) 50000" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">마감일(선택)</div>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
-          </div>
-
-          {error && <div className="text-sm text-red-600">{error}</div>}
-
-          <div className="flex items-center gap-2">
-            <Button
-              disabled={createGoal.isPending || updateGoal.isPending || !Number(targetWords || 0)}
-              onClick={() => (editingId ? updateGoal.mutate() : createGoal.mutate())}
+              Profiles
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("relationships")}
+              className={tab === "relationships"
+                ? "border-b-2 border-[#8f7f6f] pb-3 text-base font-bold text-[#1f2937]"
+                : "pb-3 text-base font-bold text-[#6b7280]"
+              }
             >
-              {editingId ? (updateGoal.isPending ? "저장 중..." : "목표 저장") : (createGoal.isPending ? "생성 중..." : "목표 생성")}
-            </Button>
-            <Button variant="outline" disabled={!editingId} onClick={() => setEditingId(null)}>
-              새 목표
-            </Button>
+              Relationships
+            </button>
           </div>
 
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="text-sm font-medium">등록된 목표</div>
-            {goalsQuery.isLoading && <div className="text-sm text-muted-foreground">불러오는 중...</div>}
-            {goalsQuery.isError && <div className="text-sm text-red-600">목표를 불러오지 못했습니다.</div>}
-            {!goalsQuery.isLoading && goals.length === 0 && (
-              <div className="text-sm text-muted-foreground">아직 목표가 없습니다.</div>
-            )}
-            {goals.map((g) => {
-              const current = Number(g.currentWords ?? 0)
-              const target = Number(g.targetWords ?? 0)
-              const p = pct(current, target)
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => setEditingId(String(g.id))}
-                  className={`w-full text-left rounded-lg border p-3 hover:bg-muted/30 ${String(editingId) === String(g.id) ? "border-primary" : ""}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm">{goalTypeLabel(g.goalType)}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {current.toLocaleString()} / {target.toLocaleString()} 단어 {g.dueDate ? `· 마감 ${g.dueDate}` : ""}
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={deleteGoal.isPending}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        if (!confirm("이 목표를 삭제할까요?")) return
-                        deleteGoal.mutate(String(g.id))
-                      }}
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                  <div className="mt-2 space-y-1">
-                    <ProgressBar value={p} />
-                    <div className="text-xs text-muted-foreground">{p}%</div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">진행 요약</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="text-muted-foreground">
-            현재 프로젝트 총 단어 수 기준으로 목표의 진행률을 계산합니다.
-          </div>
-          {goals.length > 0 ? (
-            <div className="space-y-2">
-              {goals.map((g) => {
-                const current = Number(g.currentWords ?? 0)
-                const target = Number(g.targetWords ?? 0)
-                const p = pct(current, target)
-                return (
-                  <div key={g.id} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium">{goalTypeLabel(g.goalType)}</div>
-                      <div className="text-xs text-muted-foreground">{p}%</div>
-                    </div>
-                    <div className="mt-2">
-                      <ProgressBar value={p} />
-                    </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {current.toLocaleString()} / {target.toLocaleString()} 단어
-                    </div>
-                  </div>
-                )
-              })}
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9ca3af]" />
+              <input
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                type="text"
+                placeholder="Search characters..."
+                className="h-11 w-[220px] rounded-xl bg-[#f4f1ec] pl-9 pr-4 text-sm outline-none ring-1 ring-transparent transition focus:ring-[#bcae9f]"
+              />
             </div>
-          ) : (
-            <div className="text-muted-foreground">왼쪽에서 목표를 추가하세요.</div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function CharacterStatsTab({ projectId }: { projectId: string }) {
-  const qc = useQueryClient()
-
-  const charactersQuery = useQuery({
-    queryKey: ["characters", projectId],
-    queryFn: () => api.characters.list(projectId),
-  })
-  const characters = useMemo(() => (charactersQuery.data ?? []) as any[], [charactersQuery.data])
-
-  const templatesQuery = useQuery({
-    queryKey: ["characterStats", "templates"],
-    queryFn: () => api.characterStats.templates(),
-  })
-  const templates = useMemo(() => (templatesQuery.data ?? []) as any[], [templatesQuery.data])
-
-  const [characterId, setCharacterId] = useState<string>("")
-  const [templateType, setTemplateType] = useState<string>("rpg")
-  const [episodeNum, setEpisodeNum] = useState<string>("")
-
-  const [raw, setRaw] = useState<Record<string, any>>({ str: 10, dex: 10, int: 10, vit: 10, level: 1, exp: 0 })
-  const [computed, setComputed] = useState<Record<string, any> | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const statsQuery = useQuery({
-    queryKey: ["characterStats", "list", characterId],
-    queryFn: () => api.characterStats.list(characterId),
-    enabled: Boolean(characterId),
-  })
-  const rows = useMemo(() => (statsQuery.data ?? []) as any[], [statsQuery.data])
-
-  const consistencyQuery = useQuery({
-    queryKey: ["characterStats", "consistency", characterId],
-    queryFn: () => api.characterStats.consistency(characterId),
-    enabled: Boolean(characterId),
-  })
-  const issues = useMemo(() => (consistencyQuery.data ?? []) as any[], [consistencyQuery.data])
-
-  const calculate = useMutation({
-    mutationFn: async () => {
-      setError(null)
-      return api.characterStats.calculate({ templateType, stats: raw })
-    },
-    onSuccess: (res: any) => {
-      setComputed(res ?? null)
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "계산에 실패했습니다."),
-  })
-
-  const save = useMutation({
-    mutationFn: async () => {
-      if (!characterId) return null
-      setError(null)
-      const statsPayload = computed ?? raw
-      return api.characterStats.create({
-        characterId,
-        templateType,
-        episodeNum: episodeNum ? Number(episodeNum) : null,
-        stats: statsPayload,
-      })
-    },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["characterStats", "list", characterId] })
-      await qc.invalidateQueries({ queryKey: ["characterStats", "consistency", characterId] })
-      setEpisodeNum("")
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "저장에 실패했습니다."),
-  })
-
-  const remove = useMutation({
-    mutationFn: async (id: string) => api.characterStats.delete(id),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["characterStats", "list", characterId] })
-      await qc.invalidateQueries({ queryKey: ["characterStats", "consistency", characterId] })
-    },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "삭제에 실패했습니다."),
-  })
-
-  useEffect(() => {
-    if (!characterId) return
-    setComputed(null)
-    setError(null)
-  }, [characterId])
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">캐릭터 스탯 입력</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-2">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">캐릭터</div>
-              <select
-                value={characterId}
-                onChange={(e) => setCharacterId(e.target.value)}
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="rounded-xl bg-[#8f7f6f] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#7f6f60]"
+            >
+              + Create New Character
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowFilterMenu((prev) => !prev)}
+                className="rounded-lg p-2 text-[#6b7280] hover:bg-gray-100"
               >
-                <option value="">선택...</option>
-                {characters.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {String(c.name || "이름 없음")}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">템플릿</div>
-              <select
-                value={templateType}
-                onChange={(e) => setTemplateType(e.target.value)}
-                className="w-full h-10 rounded-md border bg-background px-3 text-sm"
-              >
-                {templates.length === 0 && <option value="rpg">게임판타지(RPG)</option>}
-                {templates.map((t) => (
-                  <option key={t.id} value={String(t.id)}>
-                    {String(t.name || t.id)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">회차(선택)</div>
-              <Input value={episodeNum} onChange={(e) => setEpisodeNum(e.target.value)} placeholder="예) 12" />
-            </div>
-          </div>
+                <Filter className="h-5 w-5" />
+              </button>
 
-          <Separator />
-
-          <div className="grid grid-cols-2 gap-2">
-            {["str", "dex", "int", "vit", "level", "exp"].map((k) => (
-              <div key={k} className="space-y-1">
-                <div className="text-xs text-muted-foreground">{k.toUpperCase()}</div>
-                <Input
-                  value={String(raw[k] ?? "")}
-                  onChange={(e) => setRaw((p) => ({ ...p, [k]: Number(e.target.value) }))}
-                  placeholder="0"
-                />
-              </div>
-            ))}
-          </div>
-
-          {error && <div className="text-sm text-red-600">{error}</div>}
-
-          <div className="flex items-center gap-2">
-            <Button disabled={!characterId || calculate.isPending} onClick={() => calculate.mutate()}>
-              {calculate.isPending ? "계산 중..." : "자동 계산"}
-            </Button>
-            <Button variant="secondary" disabled={!characterId || save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? "저장 중..." : "기록 저장"}
-            </Button>
-          </div>
-
-          {computed && (
-            <div className="rounded-lg border p-3 bg-muted/20 text-sm">
-              <div className="font-medium mb-2">계산 결과</div>
-              <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(computed, null, 2)}</pre>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">기록</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {!characterId && <div className="text-muted-foreground">캐릭터를 선택하세요.</div>}
-            {characterId && statsQuery.isLoading && <div className="text-muted-foreground">불러오는 중...</div>}
-            {characterId && statsQuery.isError && <div className="text-red-600">기록을 불러오지 못했습니다.</div>}
-            {characterId && !statsQuery.isLoading && rows.length === 0 && (
-              <div className="text-muted-foreground">아직 기록이 없습니다.</div>
-            )}
-            <div className="space-y-2">
-              {rows.map((r) => (
-                <div key={r.id} className="rounded-lg border p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm">
-                        {r.episodeNum ? `회차 ${r.episodeNum}` : "기록"} {r.createdAt ? `· ${new Date(r.createdAt).toLocaleString()}` : ""}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {r.templateType || templateType}
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={remove.isPending}
+              {showFilterMenu && (
+                <div className="absolute right-0 top-11 z-20 w-40 rounded-xl border border-[#d9d3cb] bg-white p-1.5 shadow-lg">
+                  {roles.map((role) => (
+                    <button
+                      key={role}
+                      type="button"
                       onClick={() => {
-                        if (!confirm("이 기록을 삭제할까요?")) return
-                        remove.mutate(String(r.id))
+                        setRoleFilter(role)
+                        setShowFilterMenu(false)
                       }}
+                      className={roleFilter === role
+                        ? "w-full rounded-lg bg-[#f3f0eb] px-3 py-2 text-left text-sm font-semibold text-[#5f5245]"
+                        : "w-full rounded-lg px-3 py-2 text-left text-sm text-[#6b7280] hover:bg-[#f9f7f4]"
+                      }
                     >
-                      삭제
-                    </Button>
-                  </div>
-                  {r.stats && (
-                    <pre className="mt-2 whitespace-pre-wrap text-xs bg-muted/20 rounded border p-2">
-                      {JSON.stringify(r.stats, null, 2)}
-                    </pre>
-                  )}
+                      {role === "all" ? "모든 역할" : role}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">일관성 체크</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {!characterId && <div className="text-muted-foreground">캐릭터를 선택하세요.</div>}
-            {characterId && consistencyQuery.isLoading && <div className="text-muted-foreground">검사 중...</div>}
-            {characterId && consistencyQuery.isError && <div className="text-red-600">검사 결과를 불러오지 못했습니다.</div>}
-            {characterId && !consistencyQuery.isLoading && issues.length === 0 && (
-              <div className="text-muted-foreground">특이사항이 없습니다.</div>
-            )}
-            <div className="space-y-2">
-              {issues.map((it: any, idx: number) => (
-                <div key={`${it.id ?? idx}-${it.field ?? ""}`} className="rounded-md border px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-medium text-sm">
-                      {(it.severity === "error" ? "오류" : "경고")} {it.episodeNum ? `· 회차 ${it.episodeNum}` : ""}
+      <section className="bg-[#fdfbf7] px-6 py-10 md:px-14">
+        <h1 className="text-4xl font-bold text-[#1f2937]">마길초전 캐릭터</h1>
+        <p className="mt-3 text-xl text-[#7d6f62]">작품의 캐릭터들을 자유롭게 커스텀해 볼까요? 🪄</p>
+
+        {tab === "profiles" ? (
+          <>
+            <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:max-w-4xl">
+                {filteredCharacters.map((character) => (
+                  <CharacterProfileCard
+                    key={character.id}
+                    character={character}
+                    selected={character.id === selectedCharacterId}
+                    onClick={() => setSelectedCharacterId(character.id)}
+                  />
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="flex h-full min-h-[520px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#d9d3cb] bg-transparent text-center transition hover:bg-white"
+                >
+                  <span className="mb-4 inline-flex rounded-full bg-[#ece9e4] p-5 text-[#8a8177]">
+                    <Plus className="h-7 w-7" />
+                  </span>
+                  <span className="text-xl font-semibold text-[#6b7280]">Add New Character</span>
+                </button>
+              </div>
+
+              {selectedCharacter && (
+                <aside className="rounded-2xl border border-[#ded8cf] bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-bold tracking-wider text-[#8f7f6f]">SELECTED PROFILE</h3>
+                  <div className="mt-4 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={selectedCharacter.imageUrl} alt={selectedCharacter.name} className="h-14 w-14 rounded-xl border border-[#e3ddd5]" />
+                    <div>
+                      <div className="text-xl font-bold text-[#1f2937]">{selectedCharacter.name}</div>
+                      <div className="text-sm text-[#7b6f62]">{selectedCharacter.role} · {selectedCharacter.archetype}</div>
                     </div>
-                    <div className="text-xs text-muted-foreground">{it.field}</div>
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">{it.message}</div>
-                </div>
-              ))}
+                  <p className="mt-4 text-sm leading-6 text-[#7d6f62]">{selectedCharacter.bio}</p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {selectedCharacter.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-[#f2f1ee] px-2.5 py-1 text-xs font-semibold text-[#6b7280]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </aside>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            {filteredCharacters.length === 0 && (
+              <div className="mt-6 rounded-xl border border-dashed border-[#d9d3cb] bg-white p-6 text-sm text-[#7d6f62]">
+                필터 조건에 맞는 캐릭터가 없습니다.
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="rounded-2xl border border-[#ded8cf] bg-white p-5">
+              <h3 className="text-sm font-bold tracking-wider text-[#8f7f6f]">RELATIONSHIP LIST</h3>
+              <div className="mt-4 space-y-3">
+                {fallbackRelationships.map((row) => (
+                  <div key={row.id} className="rounded-xl border border-[#ece7df] bg-[#faf9f7] p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-[#1f2937]">{row.source} ↔ {row.target}</div>
+                      <span className={row.label === "ALLY"
+                        ? "rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[11px] font-bold text-[#22a060]"
+                        : "rounded-full bg-[#feecec] px-2 py-0.5 text-[11px] font-bold text-[#ef4444]"
+                      }>
+                        {row.label}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#e2e8f0]">
+                      <div className={row.label === "ALLY" ? "h-1.5 bg-[#22a060]" : "h-1.5 bg-[#ef4444]"} style={{ width: `${row.intensity}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <aside className="rounded-2xl border border-[#ded8cf] bg-white p-5">
+              <h3 className="text-sm font-bold tracking-wider text-[#8f7f6f]">GRAPH VIEW</h3>
+              <p className="mt-3 text-sm leading-6 text-[#7d6f62]">노드 기반 편집은 세계관의 관계성 화면에서 진행합니다.</p>
+              <Link href={`/projects/${projectId}/planning`} className="mt-4 inline-flex rounded-xl bg-[#8f7f6f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7f6f60]">
+                Open Relationship Graph
+              </Link>
+            </aside>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
