@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, Save, PanelLeft, PanelRight, Focus, Users } from "lucide-react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import {
     ResizableHandle,
     ResizablePanel,
@@ -22,9 +22,25 @@ import { useProjectSync } from "@/hooks/use-project-sync"
 import type { Editor } from "@tiptap/react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 
+function parseOrderedParam(value: string | null, prefix: "chapter" | "episode"): number | null {
+    if (!value) return null
+    const match = new RegExp(`^${prefix}-(\\d+)$`).exec(value)
+    if (!match) return null
+    const parsed = Number(match[1])
+    if (!Number.isInteger(parsed) || parsed < 1) return null
+    return parsed
+}
+
+function compareByOrderIndex(a: any, b: any) {
+    return (Number(a?.orderIndex ?? 0) - Number(b?.orderIndex ?? 0)) || String(a?.createdAt ?? "").localeCompare(String(b?.createdAt ?? ""))
+}
+
 export default function EditorPage() {
     const params = useParams<{ projectId: string }>()
+    const searchParams = useSearchParams()
     const projectId = params.projectId
+    const chapterParam = searchParams.get("chapter")
+    const episodeParam = searchParams.get("episode")
 
     const { isSidebarOpen, isRightPanelOpen, toggleSidebar, toggleRightPanel, focusMode, setFocusMode } = useEditorStore()
 
@@ -40,6 +56,7 @@ export default function EditorPage() {
     const queryClient = useQueryClient()
     const editorRef = useRef<Editor | null>(null)
     const wsSendTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const routeSyncRef = useRef<string | null>(null)
 
     const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
     const [content, setContent] = useState<string>("")
@@ -83,6 +100,103 @@ export default function EditorPage() {
     })
 
     const versions = useMemo(() => (versionsQuery.data ?? []) as any[], [versionsQuery.data])
+
+    useEffect(() => {
+        if (!chapterParam || documentsQuery.isLoading) return
+
+        const syncKey = `${projectId}:${chapterParam}:${episodeParam ?? ""}`
+        if (routeSyncRef.current === syncKey) return
+
+        let cancelled = false
+
+        const syncDocumentFromRoute = async () => {
+            const chapterNo = parseOrderedParam(chapterParam, "chapter")
+            if (!chapterNo) {
+                routeSyncRef.current = syncKey
+                return
+            }
+
+            let createdAny = false
+            const workingDocs = [...documents]
+
+            const getRootChapters = () =>
+                workingDocs
+                    .filter((doc) => String(doc?.type ?? "") === "chapter" && (doc?.parentId === null || doc?.parentId === undefined || doc?.parentId === ""))
+                    .sort(compareByOrderIndex)
+
+            let chapterDoc = getRootChapters()[chapterNo - 1]
+
+            if (!chapterDoc) {
+                try {
+                    chapterDoc = await api.documents.create({
+                        projectId,
+                        type: "chapter",
+                        title: `${chapterNo}장`,
+                        parentId: null,
+                        content: "",
+                        orderIndex: getRootChapters().length,
+                    })
+                    workingDocs.push(chapterDoc)
+                    createdAny = true
+                } catch (error) {
+                    if (cancelled) return
+                    setSaveError(error instanceof ApiError ? error.message : "장 문서를 생성하지 못했습니다.")
+                    return
+                }
+            }
+
+            if (!chapterDoc || cancelled) return
+
+            const chapterId = String(chapterDoc.id)
+            const episodeNo = parseOrderedParam(episodeParam, "episode")
+
+            if (!episodeNo) {
+                setSelectedDocumentId(chapterId)
+                routeSyncRef.current = syncKey
+                if (createdAny) {
+                    await queryClient.invalidateQueries({ queryKey: ["documents", projectId] })
+                }
+                return
+            }
+
+            const chapterScenes = workingDocs
+                .filter((doc) => String(doc?.type ?? "") === "scene" && String(doc?.parentId ?? "") === chapterId)
+                .sort(compareByOrderIndex)
+
+            let episodeDoc = chapterScenes[episodeNo - 1]
+
+            if (!episodeDoc) {
+                try {
+                    episodeDoc = await api.documents.create({
+                        projectId,
+                        type: "scene",
+                        title: `${chapterNo}장 ${episodeNo}화`,
+                        parentId: chapterId,
+                        content: "",
+                        orderIndex: chapterScenes.length,
+                    })
+                    createdAny = true
+                } catch (error) {
+                    if (cancelled) return
+                    setSaveError(error instanceof ApiError ? error.message : "화 문서를 생성하지 못했습니다.")
+                    return
+                }
+            }
+
+            if (cancelled) return
+            setSelectedDocumentId(String(episodeDoc.id))
+            routeSyncRef.current = syncKey
+            if (createdAny) {
+                await queryClient.invalidateQueries({ queryKey: ["documents", projectId] })
+            }
+        }
+
+        syncDocumentFromRoute()
+
+        return () => {
+            cancelled = true
+        }
+    }, [chapterParam, episodeParam, documents, documentsQuery.isLoading, projectId, queryClient])
 
     useEffect(() => {
         if (!selectedDocumentId && documents.length > 0) {
@@ -334,9 +448,9 @@ export default function EditorPage() {
     }, [dirty, content, selectedDocumentId, saveMutation])
 
     return (
-        <div className="flex flex-col h-screen h-[100dvh] bg-background overflow-hidden">
+        <div className="flex h-screen h-[100dvh] flex-col overflow-hidden bg-[#fdfbf7]">
             {/* 헤더 */}
-            <header className={cn("flex items-center justify-between px-4 py-2 border-b transition-all duration-300", focusMode && "h-0 opacity-0 overflow-hidden border-0 py-0")}>
+            <header className={cn("flex items-center justify-between border-b border-[#e7dfd3] bg-[#fdfbf7]/95 px-4 py-2 transition-all duration-300 backdrop-blur-sm", focusMode && "h-0 overflow-hidden border-0 py-0 opacity-0")}>
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" asChild>
                         <Link href="/projects">
@@ -397,7 +511,7 @@ export default function EditorPage() {
                 {/* 사이드바 패널 */}
                 {isSidebarOpen && (
                     <>
-                        <ResizablePanel defaultSize={sidebarDefaultSize} minSize="15" maxSize="30" className={cn("min-w-0 min-h-0 border-r bg-muted/10", focusMode && "hidden")}>
+                        <ResizablePanel defaultSize={sidebarDefaultSize} minSize="15" maxSize="30" className={cn("min-w-0 min-h-0 border-r border-[#e7dfd3] bg-[#f7f3ec]", focusMode && "hidden")}>
                             <div className="p-4 h-full min-h-0 flex flex-col">
                                 <div className="font-semibold text-xs text-muted-foreground mb-4 uppercase tracking-wider">원고</div>
                                 <div className="rounded-lg border p-3 bg-background space-y-2 mb-3">
@@ -515,7 +629,7 @@ export default function EditorPage() {
 
                 {/* 메인 에디터 패널 */}
                 <ResizablePanel defaultSize={editorDefaultSize} minSize="40" className="min-w-0 min-h-0">
-                    <div className="h-full overflow-y-auto bg-muted/30 flex justify-center p-8">
+                    <div className="flex h-full justify-center overflow-y-auto bg-[#fdfbf7] p-8">
                         <TipTapEditor
                             content={content}
                             onChange={onEditorChange}

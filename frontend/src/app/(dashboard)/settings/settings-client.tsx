@@ -170,18 +170,17 @@ export default function SettingsClient() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">설정</h3>
-        <p className="text-sm text-muted-foreground">계정과 운영 설정을 관리하세요.</p>
+      <div className="min-w-0">
+        <h1 className="text-[30px] font-bold text-gray-900">설정</h1>
+        <p className="mt-2 text-[15px] text-gray-500">계정과 운영 설정을 관리하세요.</p>
       </div>
-      <Separator />
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      <Card>
+      <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm mt-6">
         <CardHeader>
-          <CardTitle>계정 정보</CardTitle>
-          <CardDescription>프로필과 기본 정보를 수정합니다.</CardDescription>
+          <CardTitle className="text-[18px] font-semibold text-[#0f172a]">계정 정보</CardTitle>
+          <CardDescription className="text-[13px] text-gray-500 mt-1">프로필과 기본 정보를 수정합니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-muted-foreground">이메일: {user?.email || "-"}</div>
@@ -221,10 +220,10 @@ export default function SettingsClient() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm mt-6">
         <CardHeader>
-          <CardTitle>보안</CardTitle>
-          <CardDescription>비밀번호와 이메일을 관리합니다.</CardDescription>
+          <CardTitle className="text-[18px] font-semibold text-[#0f172a]">보안</CardTitle>
+          <CardDescription className="text-[13px] text-gray-500 mt-1">비밀번호와 이메일을 관리합니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <form className="space-y-3" onSubmit={onChangePassword}>
@@ -259,10 +258,10 @@ export default function SettingsClient() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl border border-gray-200 bg-white shadow-sm mt-6">
         <CardHeader>
-          <CardTitle>로그인 세션</CardTitle>
-          <CardDescription>현재 계정의 로그인 세션을 확인하고 해제할 수 있습니다.</CardDescription>
+          <CardTitle className="text-[18px] font-semibold text-[#0f172a]">로그인 세션</CardTitle>
+          <CardDescription className="text-[13px] text-gray-500 mt-1">현재 계정의 로그인 세션을 확인하고 해제할 수 있습니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-end">
@@ -292,10 +291,10 @@ export default function SettingsClient() {
         </CardContent>
       </Card>
 
-      <Card className="border-red-200">
+      <Card className="rounded-2xl border border-red-200 bg-white shadow-sm mt-6">
         <CardHeader>
-          <CardTitle className="text-red-600">계정 삭제</CardTitle>
-          <CardDescription>계정을 삭제하면 로그인할 수 없습니다. (데이터는 복구할 수 없습니다)</CardDescription>
+          <CardTitle className="text-[18px] font-semibold text-red-600">계정 삭제</CardTitle>
+          <CardDescription className="text-[13px] text-red-500 mt-1">계정을 삭제하면 로그인할 수 없습니다. (데이터는 복구할 수 없습니다)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-2">

@@ -1,5 +1,6 @@
 "use client"
 
+import clsx from "clsx"
 import { Editor, useEditor, EditorContent, ReactRenderer } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Mention from '@tiptap/extension-mention'
@@ -11,6 +12,8 @@ interface TipTapEditorProps {
     content?: string
     onChange?: (content: string) => void
     onReady?: (editor: Editor) => void
+    containerClassName?: string
+    editorClassName?: string
 }
 
 const suggestion = {
@@ -73,9 +76,10 @@ const suggestion = {
     },
 }
 
-export function TipTapEditor({ content, onChange, onReady }: TipTapEditorProps) {
+export function TipTapEditor({ content, onChange, onReady, containerClassName, editorClassName }: TipTapEditorProps) {
     const applyingRef = useRef(false)
     const editor = useEditor({
+        immediatelyRender: false,
         extensions: [
             StarterKit.configure({
                 heading: {
@@ -92,7 +96,10 @@ export function TipTapEditor({ content, onChange, onReady }: TipTapEditorProps) 
         content: content ?? '<p></p>',
         editorProps: {
             attributes: {
-                class: 'prose prose-stone dark:prose-invert max-w-none focus:outline-none min-h-[500px] px-8 py-6',
+                class: clsx(
+                    "prose prose-stone prose-headings:font-semibold prose-p:text-[#3f3b35] prose-li:text-[#3f3b35] prose-h1:text-4xl prose-h2:text-3xl prose-h3:text-2xl max-w-none min-h-[70vh] px-14 py-12 text-[16px] leading-8 focus:outline-none",
+                    editorClassName
+                ),
             },
         },
         onUpdate: ({ editor }) => {
@@ -124,7 +131,7 @@ export function TipTapEditor({ content, onChange, onReady }: TipTapEditorProps) 
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-background rounded-lg shadow-sm border min-h-[80vh]">
+        <div className={clsx("mx-auto min-h-[82vh] w-full max-w-5xl rounded-2xl border border-[#e9e1d6] bg-white shadow-[0_18px_55px_-35px_rgba(73,53,35,0.35)]", containerClassName)}>
             <EditorContent editor={editor} />
         </div>
     )
