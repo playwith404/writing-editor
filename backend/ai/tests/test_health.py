@@ -12,3 +12,4 @@ def test_health():
     assert body["status"] == "ok"
     assert body["service"] == "ai-service"
     assert "time" in body
+    assert body["mode"] in ("mock", "live")

@@ -1,5 +1,7 @@
 import os
-from typing import Literal, Optional
+import re
+from json import JSONDecodeError, loads
+from typing import Any, Literal, Optional
 
 import httpx
 
@@ -30,10 +32,10 @@ def get_runtime_mode() -> RuntimeMode:
     return "live" if mode == "live" else "mock"
 
 
-def resolve_model(explicit_model: Optional[str]) -> str:
+def resolve_model(explicit_model: Optional[str] = None) -> str:
     if explicit_model and explicit_model.strip():
         return explicit_model.strip()
-    default_value = "gemini-3-flash-preview"
+    default_value = "gemini-3.0-flash"
     return _get_env("GEMINI_MODEL", default_value) or default_value
 
 
@@ -74,16 +76,52 @@ def _extract_gemini_text(data: dict) -> str:
     return "\n".join(chunks).strip()
 
 
-async def call_provider(
+def _parse_json_text(text: str) -> dict[str, Any]:
+    try:
+        parsed = loads(text)
+        if isinstance(parsed, dict):
+            return parsed
+    except JSONDecodeError:
+        pass
+
+    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, flags=re.DOTALL)
+    if fenced:
+        try:
+            parsed = loads(fenced.group(1))
+            if isinstance(parsed, dict):
+                return parsed
+        except JSONDecodeError:
+            pass
+
+    first = text.find("{")
+    last = text.rfind("}")
+    if first != -1 and last != -1 and last > first:
+        snippet = text[first : last + 1]
+        try:
+            parsed = loads(snippet)
+            if isinstance(parsed, dict):
+                return parsed
+        except JSONDecodeError:
+            pass
+
+    raise ProviderError("Gemini did not return valid JSON object output.")
+
+
+async def call_provider_json(
     prompt: str,
     model: Optional[str] = None,
     system_prompt: Optional[str] = None,
-) -> str:
+    temperature: float = 0.7,
+) -> dict[str, Any]:
     api_key = require_api_key()
     model_name = resolve_model(model)
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": temperature,
+            "responseMimeType": "application/json",
+        },
     }
     if system_prompt and system_prompt.strip():
         payload["systemInstruction"] = {"parts": [{"text": system_prompt.strip()}]}
@@ -98,4 +136,7 @@ async def call_provider(
     if resp.status_code >= 400:
         raise ProviderError(f"Gemini error: {resp.text}")
 
-    return _extract_gemini_text(resp.json())
+    text = _extract_gemini_text(resp.json())
+    if not text:
+        raise ProviderError("Gemini returned an empty response body.")
+    return _parse_json_text(text)
