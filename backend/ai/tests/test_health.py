@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
-from app.main import app
 
+from app.main import app
 
 client = TestClient(app)
 
@@ -12,4 +12,3 @@ def test_health():
     assert body["status"] == "ok"
     assert body["service"] == "ai-service"
     assert "time" in body
-    assert body["mode"] in ("mock", "live")

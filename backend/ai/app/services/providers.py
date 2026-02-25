@@ -1,12 +1,9 @@
 import os
 import re
 from json import JSONDecodeError, loads
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 import httpx
-
-ProviderName = Literal["gemini"]
-RuntimeMode = Literal["mock", "live"]
 
 
 class ProviderError(Exception):
@@ -27,24 +24,17 @@ def _get_timeout() -> float:
         return 60.0
 
 
-def get_runtime_mode() -> RuntimeMode:
-    mode = (_get_env("AI_MODE", "mock") or "mock").strip().lower()
-    return "live" if mode == "live" else "mock"
-
-
 def resolve_model(explicit_model: Optional[str] = None) -> str:
     if explicit_model and explicit_model.strip():
         return explicit_model.strip()
-    default_value = "gemini-3.0-flash"
+    default_value = "gemini-2.0-flash"
     return _get_env("GEMINI_MODEL", default_value) or default_value
 
 
 def require_api_key() -> str:
     key = _get_env("GEMINI_API_KEY")
     if not key:
-        raise ProviderError(
-            "GEMINI_API_KEY is not set. Set API key env vars or switch AI_MODE=mock."
-        )
+        raise ProviderError("GEMINI_API_KEY is not set.")
     return key
 
 
@@ -53,11 +43,12 @@ def _gemini_endpoint(model: str) -> str:
     return f"{base.rstrip('/')}/models/{model}:generateContent"
 
 
-def _extract_gemini_text(data: dict) -> str:
+def _extract_gemini_text(data: dict[str, Any]) -> str:
     chunks: list[str] = []
     candidates = data.get("candidates", [])
     if not isinstance(candidates, list):
         return ""
+
     for candidate in candidates:
         if not isinstance(candidate, dict):
             continue
@@ -116,7 +107,7 @@ async def call_provider_json(
     api_key = require_api_key()
     model_name = resolve_model(model)
 
-    payload = {
+    payload: dict[str, Any] = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": temperature,
@@ -139,4 +130,5 @@ async def call_provider_json(
     text = _extract_gemini_text(resp.json())
     if not text:
         raise ProviderError("Gemini returned an empty response body.")
+
     return _parse_json_text(text)
