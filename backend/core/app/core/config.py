@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "웹소설 집필 스튜디오 Core API"
+    AI_SERVICE_URL: str = "http://127.0.0.1:8000"
     
     # 아까 docker-compose.yaml에 적었던 DB 정보입니다.
     POSTGRES_USER: str = "root"

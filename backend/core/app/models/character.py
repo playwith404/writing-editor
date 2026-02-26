@@ -1,3 +1,5 @@
+# app/models/character.py
+
 import uuid
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB

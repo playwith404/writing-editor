@@ -652,6 +652,9 @@ https://kim-jong-hyun.tistory.com/49
 
 ### **6.3 AI 도우미**
 
+> 구현 규칙: 프론트는 아래의 `/api/...` 공개 경로만 호출합니다.  
+> Core는 요청을 가공해 AI 내부 경로(`/internal/...`)로 프록시하며, 내부 계약은 `backend/core/docs/ai-api.md`를 기준으로 합니다.
+
 - **API 주소:** `POST /api/episodes/{episodeId}/ai/autocomplete`
     
     AI 에이전트 - 이어쓰기 API
