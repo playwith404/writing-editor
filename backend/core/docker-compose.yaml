@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  # 내 API 개발만을 위한 로컬 DB
+  core-db:
+    image: pgvector/pgvector:pg16
+    container_name: webnovel_core_db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password123!
+      POSTGRES_DB: gleey
+    ports:
+      - "5432:5432"
+    volumes:
+      - core_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  core_postgres_data:
