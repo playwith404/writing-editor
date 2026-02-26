@@ -355,6 +355,10 @@ export default function PlanningPage() {
     const nextId = `node-${nodeCounterRef.current}`
     nodeCounterRef.current += 1
 
+    const tieToSelected: Relationship | null = selectedNode
+      ? { targetId: selectedNode.id, label: "ALLY", value: 70 }
+      : null
+
     const newNode: CharacterNode = {
       id: nextId,
       name: payload.name,
@@ -363,10 +367,12 @@ export default function PlanningPage() {
       avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(payload.name)}`,
       traits: ["Adaptive", "Driven", "Curious"],
       arc: `${payload.name}의 서사 흐름을 업데이트해 보세요.`,
-      ties: selectedNode ? [{ targetId: selectedNode.id, label: "ALLY", value: 70 }] : [],
+      ties: tieToSelected ? [tieToSelected] : [],
       x: 54,
       y: 52,
     }
+
+    const tieToNewNode: Relationship = { targetId: newNode.id, label: "ALLY", value: 70 }
 
     setNodes((prev) => {
       if (!selectedNode) return [...prev, newNode]
@@ -374,7 +380,7 @@ export default function PlanningPage() {
         if (node.id !== selectedNode.id) return node
         return {
           ...node,
-          ties: [...node.ties, { targetId: newNode.id, label: "ALLY", value: 70 }],
+          ties: [...node.ties, tieToNewNode],
         }
       }).concat(newNode)
     })
