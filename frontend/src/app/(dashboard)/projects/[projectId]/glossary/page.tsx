@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import {
   ArrowRight,
@@ -9,7 +11,9 @@ import {
   Wand2,
 } from "lucide-react"
 import type { ComponentType } from "react"
-import { glossaryTerms } from "./glossary-data"
+import { useEffect, useMemo } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { api, ApiError } from "@/lib/api"
 
 function CategoryLink({
   href,
@@ -42,11 +46,60 @@ export default function GlossaryPage({
   params: { projectId: string }
 }) {
   const projectId = params.projectId
+  const queryClient = useQueryClient()
+
+  const projectQuery = useQuery({
+    queryKey: ["projects", projectId],
+    queryFn: () => api.projects.get(projectId),
+    enabled: Boolean(projectId),
+  })
+
+  const worldviewsQuery = useQuery({
+    queryKey: ["worldviews", projectId],
+    queryFn: () => api.worldviews.list(projectId),
+    enabled: Boolean(projectId),
+  })
+
+  const termWorldview = useMemo(() => {
+    const list = worldviewsQuery.data ?? []
+    return list.find((w) => w.type === "TERM") ?? null
+  }, [worldviewsQuery.data])
+
+  const bootstrapTermWorldview = useMutation({
+    mutationFn: async () => {
+      return api.worldviews.create(projectId, {
+        name: "용어",
+        description: "세계관 핵심 용어를 정리합니다.",
+        type: "TERM",
+        isSynced: true,
+      })
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["worldviews", projectId] })
+    },
+  })
+
+  useEffect(() => {
+    if (!projectId) return
+    if (worldviewsQuery.isLoading || worldviewsQuery.isError) return
+    if (termWorldview) return
+    if (bootstrapTermWorldview.isPending) return
+    bootstrapTermWorldview.mutate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, worldviewsQuery.isLoading, worldviewsQuery.isError, termWorldview])
+
+  const termsQuery = useQuery({
+    queryKey: ["worldview-terms", termWorldview?.id],
+    queryFn: () => api.worldviews.terms.list(termWorldview!.id),
+    enabled: Boolean(termWorldview?.id),
+  })
+
+  const terms = useMemo(() => termsQuery.data ?? [], [termsQuery.data])
 
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-[32px] font-bold text-[#111827]">마길초전 세계관 - 용어</h1>
+        <h1 className="text-[32px] font-bold text-[#111827]">{projectQuery.data?.title || "프로젝트"} 세계관 - 용어</h1>
         <p className="mt-2 text-lg text-[#7d6f62]">용어를 선택해 상세 정보를 확인해 보세요.</p>
       </section>
 
@@ -65,7 +118,23 @@ export default function GlossaryPage({
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {glossaryTerms.map((term) => (
+          {termsQuery.isLoading && (
+            <div className="rounded-2xl border border-[#ddd2c3] bg-white p-4 text-sm font-semibold text-[#7d6f62]">
+              용어를 불러오는 중...
+            </div>
+          )}
+          {termsQuery.isError && (
+            <div className="rounded-2xl border border-[#ddd2c3] bg-white p-4 text-sm font-semibold text-[#7d6f62]">
+              용어 목록을 불러오지 못했습니다.
+            </div>
+          )}
+          {!termsQuery.isLoading && terms.length === 0 && (
+            <div className="rounded-2xl border border-[#ddd2c3] bg-white p-4 text-sm font-semibold text-[#7d6f62]">
+              아직 등록된 용어가 없습니다.
+            </div>
+          )}
+
+          {terms.map((term) => (
             <Link
               key={term.id}
               href={`/projects/${projectId}/glossary/${term.id}`}
@@ -74,14 +143,14 @@ export default function GlossaryPage({
               <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-[#1f2937]">{term.term}</h3>
                 <span className="rounded-full bg-[#f2e8da] px-2.5 py-1 text-[11px] font-semibold text-[#816f5d]">
-                  {term.category}
+                  용어
                 </span>
               </div>
 
-              <p className="line-clamp-2 text-sm text-[#7d6f62]">{term.summary}</p>
+              <p className="line-clamp-2 text-sm text-[#7d6f62]">{term.meaning}</p>
 
               <div className="mt-4 flex items-center justify-between text-xs text-[#9b8d7f]">
-                <span>최근 수정 {term.updatedAt}</span>
+                <span>{term.createdAt ? `생성 ${term.createdAt}` : ""}</span>
                 <span className="inline-flex items-center gap-1 font-semibold text-[#8b7c6d]">
                   상세 보기 <ArrowRight className="h-3.5 w-3.5" />
                 </span>

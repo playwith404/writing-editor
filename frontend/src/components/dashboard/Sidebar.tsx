@@ -2,8 +2,9 @@
 
 import clsx from "clsx"
 import Link from "next/link"
-import { useParams, usePathname } from "next/navigation"
-import { useRef, useState } from "react"
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ChevronDown,
   ChevronUp,
@@ -17,6 +18,7 @@ import {
   Settings,
   Users,
 } from "lucide-react"
+import { api, ApiError } from "@/lib/api"
 
 type ProjectMenuItem = {
   label: string
@@ -27,12 +29,7 @@ type ProjectMenuItem = {
 type EpisodeItem = {
   id: string
   title: string
-}
-
-type ChapterItem = {
-  id: string
-  title: string
-  episodes: EpisodeItem[]
+  orderIndex: number
 }
 
 function isExactOrChild(pathname: string, href: string) {
@@ -80,21 +77,36 @@ function ProjectButton({ item, active }: { item: ProjectMenuItem; active: boolea
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const params = useParams<{ projectId: string }>()
   const projectId = params?.projectId
   const editorHref = projectId ? `/projects/${projectId}/editor` : "/projects"
-  const [seriesTitle, setSeriesTitle] = useState("나의 삶 시리즈")
-  const [seriesTitleDraft, setSeriesTitleDraft] = useState("나의 삶 시리즈")
+  const queryClient = useQueryClient()
+
+  const projectQuery = useQuery({
+    queryKey: ["projects", projectId],
+    queryFn: () => api.projects.get(projectId),
+    enabled: Boolean(projectId),
+  })
+
+  const episodesQuery = useQuery({
+    queryKey: ["episodes", projectId],
+    queryFn: () => api.episodes.list(projectId),
+    enabled: Boolean(projectId),
+  })
+
+  const episodes = useMemo(() => {
+    const list = (episodesQuery.data ?? []) as Array<{ id: string; title: string; orderIndex: number }>
+    return [...list].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+  }, [episodesQuery.data])
+
+  const currentEpisodeId = searchParams.get("episodeId")
+
+  const [seriesTitle, setSeriesTitle] = useState("프로젝트")
+  const [seriesTitleDraft, setSeriesTitleDraft] = useState("프로젝트")
   const [isEditingSeriesTitle, setIsEditingSeriesTitle] = useState(false)
-
-  const [chapters, setChapters] = useState<ChapterItem[]>([
-    { id: "chapter-1", title: "나의 삶", episodes: [] },
-    { id: "chapter-2", title: "나의 삶", episodes: [] },
-    { id: "chapter-3", title: "나의 삶", episodes: [] },
-  ])
-
-  const chapterCounterRef = useRef(4)
-  const episodeCounterRef = useRef(1)
+  const [episodeError, setEpisodeError] = useState<string | null>(null)
 
   const projectItems: ProjectMenuItem[] = projectId
     ? [
@@ -104,6 +116,13 @@ export default function Sidebar() {
         { label: "Settings", href: `/projects/${projectId}/payment`, icon: Settings },
       ]
     : []
+
+  useEffect(() => {
+    if (!projectQuery.data?.title) return
+    if (isEditingSeriesTitle) return
+    setSeriesTitle(projectQuery.data.title)
+    setSeriesTitleDraft(projectQuery.data.title)
+  }, [projectQuery.data?.title, isEditingSeriesTitle])
 
   const startSeriesTitleEdit = () => {
     setSeriesTitleDraft(seriesTitle)
@@ -126,54 +145,44 @@ export default function Sidebar() {
     setIsEditingSeriesTitle(false)
   }
 
-  const addChapter = () => {
-    const nextChapterNumber = chapterCounterRef.current
-    chapterCounterRef.current += 1
+  const createEpisodeMutation = useMutation({
+    mutationFn: async () => {
+      setEpisodeError(null)
+      const nextOrderIndex = episodes.length > 0 ? Math.max(...episodes.map((ep) => ep.orderIndex)) + 1 : 1
+      const title = `${nextOrderIndex}장. 새 원고`
+      return api.episodes.create(projectId, { title, orderIndex: nextOrderIndex })
+    },
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ["episodes", projectId] })
+      router.push(`${editorHref}?episodeId=${encodeURIComponent(created.id)}`)
+    },
+    onError: (err) => {
+      setEpisodeError(err instanceof ApiError ? err.message : "회차 생성에 실패했습니다.")
+    },
+  })
 
-    setChapters((prev) => [
-      ...prev,
-      {
-        id: `chapter-${nextChapterNumber}`,
-        title: "나의 삶",
-        episodes: [],
-      },
-    ])
-  }
+  const reorderEpisodeMutation = useMutation({
+    mutationFn: async ({ episodeId, direction }: { episodeId: string; direction: "up" | "down" }) => {
+      setEpisodeError(null)
+      const idx = episodes.findIndex((ep) => ep.id === episodeId)
+      if (idx < 0) return
+      const targetIdx = direction === "up" ? idx - 1 : idx + 1
+      if (targetIdx < 0 || targetIdx >= episodes.length) return
 
-  const moveChapter = (currentIndex: number, direction: "up" | "down") => {
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
-
-    setChapters((prev) => {
-      if (targetIndex < 0 || targetIndex >= prev.length) return prev
-
-      const reordered = [...prev]
-      const [moved] = reordered.splice(currentIndex, 1)
-      reordered.splice(targetIndex, 0, moved)
-      return reordered
-    })
-  }
-
-  const addEpisode = (chapterId: string) => {
-    const nextEpisodeId = `episode-${episodeCounterRef.current}`
-    episodeCounterRef.current += 1
-
-    setChapters((prev) =>
-      prev.map((chapter) => {
-        if (chapter.id !== chapterId) return chapter
-        const nextEpisodeNo = chapter.episodes.length + 1
-        return {
-          ...chapter,
-          episodes: [
-            ...chapter.episodes,
-            {
-              id: nextEpisodeId,
-              title: `${nextEpisodeNo}화`,
-            },
-          ],
-        }
-      })
-    )
-  }
+      const a = episodes[idx]
+      const b = episodes[targetIdx]
+      await Promise.all([
+        api.episodes.save(a.id, { orderIndex: b.orderIndex }),
+        api.episodes.save(b.id, { orderIndex: a.orderIndex }),
+      ])
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["episodes", projectId] })
+    },
+    onError: (err) => {
+      setEpisodeError(err instanceof ApiError ? err.message : "순서 변경에 실패했습니다.")
+    },
+  })
 
   return (
     <aside className="hidden h-full w-[260px] shrink-0 flex-col border-r border-gray-200 bg-[#f2f1ee] md:flex lg:w-[300px]">
@@ -202,9 +211,9 @@ export default function Sidebar() {
         {projectId && (
           <>
             <div className="mt-10 px-6">
-              <div className="mb-4 flex items-center justify-between px-2 text-[#7b6e61]">
-                <div className="flex items-center gap-2 text-sm font-bold">
-                  <Folder className="h-4 w-4" />
+                <div className="mb-4 flex items-center justify-between px-2 text-[#7b6e61]">
+                  <div className="flex items-center gap-2 text-sm font-bold">
+                    <Folder className="h-4 w-4" />
                   {isEditingSeriesTitle ? (
                     <input
                       value={seriesTitleDraft}
@@ -240,10 +249,10 @@ export default function Sidebar() {
                   </button>
                   <button
                     type="button"
-                    onClick={addChapter}
+                    onClick={() => createEpisodeMutation.mutate()}
                     className="rounded-md border border-[#d8cec3] bg-white p-1 text-[#7f7367] transition hover:bg-[#f7f2eb]"
-                    aria-label="add chapter"
-                    title="장 추가"
+                    aria-label="add episode"
+                    title="회차 추가"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -270,89 +279,74 @@ export default function Sidebar() {
               </div>
 
               <div className="mt-4 space-y-2 px-1 text-sm text-[#7f7367]">
-                {chapters.map((chapter, chapterIndex) => (
-                  <div key={chapter.id} className="rounded-xl border border-[#ded5ca] bg-[#f8f4ee] px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <Link
-                        href={`${editorHref}?chapter=${chapter.id}`}
-                        className="truncate text-sm font-semibold text-[#6f6357] hover:text-[#5a4f44]"
-                        title={`${chapterIndex + 1}장 : ${chapter.title}`}
-                      >
-                        {chapterIndex + 1}장 : {chapter.title}
-                      </Link>
+                {episodeError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                    {episodeError}
+                  </div>
+                )}
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveChapter(chapterIndex, "up")}
-                          disabled={chapterIndex === 0}
-                          className={clsx(
-                            "rounded-md border p-1 transition",
-                            chapterIndex === 0
-                              ? "cursor-not-allowed border-[#e3dbd0] bg-[#f6f2ec] text-[#b7ab9f]"
-                              : "border-[#d8cec3] bg-white text-[#7f7367] hover:bg-[#f4ede4]"
-                          )}
-                          aria-label="move chapter up"
-                          title="위로 이동"
-                        >
-                          <ChevronUp className="h-3 w-3" />
-                        </button>
+                {episodesQuery.isLoading && (
+                  <div className="rounded-xl border border-[#ded5ca] bg-[#f8f4ee] px-3 py-2 text-sm font-semibold text-[#6f6357]">
+                    목차를 불러오는 중...
+                  </div>
+                )}
 
-                        <button
-                          type="button"
-                          onClick={() => moveChapter(chapterIndex, "down")}
-                          disabled={chapterIndex === chapters.length - 1}
-                          className={clsx(
-                            "rounded-md border p-1 transition",
-                            chapterIndex === chapters.length - 1
-                              ? "cursor-not-allowed border-[#e3dbd0] bg-[#f6f2ec] text-[#b7ab9f]"
-                              : "border-[#d8cec3] bg-white text-[#7f7367] hover:bg-[#f4ede4]"
-                          )}
-                          aria-label="move chapter down"
-                          title="아래로 이동"
-                        >
-                          <ChevronDown className="h-3 w-3" />
-                        </button>
+                {!episodesQuery.isLoading && episodes.length === 0 && (
+                  <div className="rounded-xl border border-[#ded5ca] bg-[#f8f4ee] px-3 py-2 text-sm font-semibold text-[#6f6357]">
+                    아직 생성된 회차가 없습니다.
+                  </div>
+                )}
 
-                        <button
-                          type="button"
-                          onClick={() => addEpisode(chapter.id)}
-                          className="rounded-md border border-[#d8cec3] bg-white p-1 text-[#7f7367] transition hover:bg-[#f4ede4]"
-                          aria-label="add episode"
-                          title="화 추가"
+                {episodes.map((episode, episodeIndex) => {
+                  const active = currentEpisodeId === episode.id
+                  return (
+                    <div key={episode.id} className={clsx("rounded-xl border px-3 py-2", active ? "border-[#b9aa98] bg-white" : "border-[#ded5ca] bg-[#f8f4ee]")}>
+                      <div className="flex items-center justify-between gap-2">
+                        <Link
+                          href={`${editorHref}?episodeId=${encodeURIComponent(episode.id)}`}
+                          className="truncate text-sm font-semibold text-[#6f6357] hover:text-[#5a4f44]"
+                          title={episode.title}
                         >
-                          <Plus className="h-3 w-3" />
-                        </button>
+                          {episode.title}
+                        </Link>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => reorderEpisodeMutation.mutate({ episodeId: episode.id, direction: "up" })}
+                            disabled={episodeIndex === 0 || reorderEpisodeMutation.isPending}
+                            className={clsx(
+                              "rounded-md border p-1 transition",
+                              episodeIndex === 0
+                                ? "cursor-not-allowed border-[#e3dbd0] bg-[#f6f2ec] text-[#b7ab9f]"
+                                : "border-[#d8cec3] bg-white text-[#7f7367] hover:bg-[#f4ede4]"
+                            )}
+                            aria-label="move episode up"
+                            title="위로 이동"
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => reorderEpisodeMutation.mutate({ episodeId: episode.id, direction: "down" })}
+                            disabled={episodeIndex === episodes.length - 1 || reorderEpisodeMutation.isPending}
+                            className={clsx(
+                              "rounded-md border p-1 transition",
+                              episodeIndex === episodes.length - 1
+                                ? "cursor-not-allowed border-[#e3dbd0] bg-[#f6f2ec] text-[#b7ab9f]"
+                                : "border-[#d8cec3] bg-white text-[#7f7367] hover:bg-[#f4ede4]"
+                            )}
+                            aria-label="move episode down"
+                            title="아래로 이동"
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-
-                    {chapter.episodes.length > 0 && (
-                      <div className="mt-2 space-y-1 border-l border-[#d8cec3] pl-2">
-                        {chapter.episodes.map((episode) => (
-                          <Link
-                            key={episode.id}
-                            href={`${editorHref}?chapter=${chapter.id}&episode=${episode.id}`}
-                            className="flex items-center gap-2 rounded-md px-2 py-1 text-xs font-medium text-[#7f7367] transition hover:bg-[#f1e9de]"
-                            title={`${chapter.title} ${episode.title}`}
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#938274]" />
-                            <span>{episode.title}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 px-6 pb-8">
-              <div className="mb-2 flex items-center justify-between px-2 text-[#7b6e61]">
-                <div className="flex items-center gap-2 text-sm font-bold">
-                  <Folder className="h-4 w-4" />
-                  <span>나의 삶 2 시리즈</span>
-                </div>
-                <ChevronDown className="h-4 w-4" />
+                  )
+                })}
               </div>
             </div>
           </>

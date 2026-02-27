@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { ComponentType, FormEvent } from "react"
 import {
   ArrowRight,
@@ -14,6 +15,7 @@ import {
   Wand2,
   X,
 } from "lucide-react"
+import { api } from "@/lib/api"
 
 type CategoryCardProps = {
   href: string
@@ -207,7 +209,13 @@ export default function ProjectDashboardPage() {
   const params = useParams<{ projectId: string }>()
   const projectId = params.projectId
 
-  const projectTitle = projectId === "magilcho-jeon" ? "마길초전" : "마길초전"
+  const projectQuery = useQuery({
+    queryKey: ["projects", projectId],
+    queryFn: () => api.projects.get(projectId),
+    enabled: Boolean(projectId),
+  })
+
+  const projectTitle = projectQuery.data?.title || "프로젝트"
   const [filter, setFilter] = useState<FilterValue>("all")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [customCards, setCustomCards] = useState<CategoryCardProps[]>([])
