@@ -2,6 +2,13 @@ import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "@/lib/a
 
 type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE"
 
+type CoreEnvelope<T> = {
+  success: boolean
+  message?: string
+  data: T
+  total_count?: number
+}
+
 export class ApiError extends Error {
   status: number
   body: unknown
@@ -189,6 +196,82 @@ async function tryRefresh(): Promise<boolean> {
   }
 }
 
+function toIso(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined
+  return value
+}
+
+function mapCoreProject(raw: any) {
+  return {
+    id: String(raw?.id ?? ""),
+    title: String(raw?.title ?? ""),
+    createdAt: toIso(raw?.created_at),
+    updatedAt: toIso(raw?.updated_at),
+    settings: raw?.settings,
+  }
+}
+
+function mapCoreEpisodeListItem(raw: any) {
+  return {
+    id: String(raw?.id ?? ""),
+    projectId: String(raw?.project_id ?? raw?.projectId ?? ""),
+    title: String(raw?.title ?? ""),
+    orderIndex: Number(raw?.order_index ?? raw?.orderIndex ?? 0),
+    status: String(raw?.status ?? "TODO"),
+    charCount: Number(raw?.char_count ?? raw?.charCount ?? 0),
+    updatedAt: toIso(raw?.updated_at),
+  }
+}
+
+function mapCoreEpisodeDetail(raw: any) {
+  return {
+    ...mapCoreEpisodeListItem(raw),
+    charCountNoSpace: Number(raw?.char_count_no_space ?? raw?.charCountNoSpace ?? 0),
+    content: raw?.content ?? null,
+    createdAt: toIso(raw?.created_at),
+  }
+}
+
+function mapCoreCharacter(raw: any) {
+  const job = raw?.job ?? null
+  return {
+    id: String(raw?.id ?? ""),
+    projectId: String(raw?.project_id ?? raw?.projectId ?? ""),
+    name: String(raw?.name ?? ""),
+    imageUrl: typeof raw?.image_url === "string" ? raw.image_url : undefined,
+    job: typeof job === "string" ? job : undefined,
+    role: typeof job === "string" ? job : undefined,
+    personality: Array.isArray(raw?.personality) ? raw.personality : [],
+    description: typeof raw?.description === "string" ? raw.description : undefined,
+    isSynced: typeof raw?.is_synced === "boolean" ? raw.is_synced : undefined,
+    createdAt: toIso(raw?.created_at),
+    updatedAt: toIso(raw?.updated_at),
+  }
+}
+
+function mapCoreWorldview(raw: any) {
+  return {
+    id: String(raw?.id ?? ""),
+    projectId: String(raw?.project_id ?? raw?.projectId ?? ""),
+    name: String(raw?.name ?? ""),
+    description: typeof raw?.description === "string" ? raw.description : undefined,
+    type: String(raw?.type ?? ""),
+    isSynced: typeof raw?.is_synced === "boolean" ? raw.is_synced : undefined,
+    createdAt: toIso(raw?.created_at),
+    updatedAt: toIso(raw?.updated_at),
+  }
+}
+
+function mapCoreTerm(raw: any) {
+  return {
+    id: String(raw?.id ?? ""),
+    worldviewId: String(raw?.worldview_id ?? raw?.worldviewId ?? ""),
+    term: String(raw?.term ?? ""),
+    meaning: String(raw?.meaning ?? ""),
+    createdAt: toIso(raw?.created_at),
+  }
+}
+
 export const api = {
   auth: {
     login: (dto: { email: string; password: string }) =>
@@ -231,11 +314,23 @@ export const api = {
     subscribe: (dto: { plan: "free" | "pro" | "master" }) => apiFetch<any>("/billing/subscribe", { method: "POST", body: dto }),
   },
   projects: {
-    list: () => apiFetch<any[]>("/projects"),
-    get: (id: string) => apiFetch<any>(`/projects/${id}`),
-    create: (dto: { title: string; description?: string; genre?: string }) => apiFetch<any>("/projects", { method: "POST", body: dto }),
-    update: (id: string, dto: { title?: string; description?: string; genre?: string; coverUrl?: string; isPublic?: boolean; settings?: any }) =>
-      apiFetch<any>(`/projects/${id}`, { method: "PATCH", body: dto }),
+    list: async () => {
+      const resp = await apiFetch<CoreEnvelope<any[]>>("/projects")
+      return (resp.data ?? []).map(mapCoreProject)
+    },
+    get: async (id: string) => {
+      const projects = await api.projects.list()
+      const found = projects.find((p) => p.id === id)
+      if (!found) throw new ApiError("프로젝트를 찾을 수 없습니다.", 404, null)
+      return found
+    },
+    create: async (dto: { title: string }) => {
+      const resp = await apiFetch<CoreEnvelope<any>>("/projects", { method: "POST", body: { title: dto.title } })
+      return mapCoreProject(resp.data)
+    },
+    update: async (_id: string, _dto: any) => {
+      throw new ApiError("프로젝트 업데이트 API가 아직 구현되지 않았습니다.", 501, null)
+    },
   },
   documents: {
     list: (projectId: string) => apiFetch<any[]>(`/documents?projectId=${encodeURIComponent(projectId)}`),
@@ -267,11 +362,112 @@ export const api = {
     delete: (id: string) => apiFetch<{ success: true }>(`/character-stats/${id}`, { method: "DELETE" }),
   },
   characters: {
-    list: (projectId: string) => apiFetch<any[]>(`/characters?projectId=${encodeURIComponent(projectId)}`),
-    create: (dto: { projectId: string; name: string; role?: string; backstory?: string; speechSample?: string; imageUrl?: string }) =>
-      apiFetch<any>("/characters", { method: "POST", body: dto }),
-    update: (id: string, dto: any) => apiFetch<any>(`/characters/${id}`, { method: "PATCH", body: dto }),
-    delete: (id: string) => apiFetch<{ success: true }>(`/characters/${id}`, { method: "DELETE" }),
+    list: async (projectId: string) => {
+      const resp = await apiFetch<CoreEnvelope<any[]>>(`/projects/${encodeURIComponent(projectId)}/characters`)
+      return (resp.data ?? []).map(mapCoreCharacter)
+    },
+    create: async (dto: { projectId: string; name: string; role?: string; imageUrl?: string; description?: string; isSynced?: boolean }) => {
+      const resp = await apiFetch<CoreEnvelope<any>>(`/projects/${encodeURIComponent(dto.projectId)}/characters`, {
+        method: "POST",
+        body: {
+          name: dto.name,
+          image_url: dto.imageUrl,
+          job: dto.role,
+          personality: [],
+          description: dto.description,
+          is_synced: dto.isSynced ?? true,
+        },
+      })
+      return mapCoreCharacter(resp.data)
+    },
+    update: async (id: string, dto: any) => {
+      const resp = await apiFetch<CoreEnvelope<any>>(`/characters/${encodeURIComponent(id)}`, { method: "PATCH", body: dto })
+      return mapCoreCharacter(resp.data)
+    },
+    delete: (id: string) => apiFetch<{ success: true }>(`/characters/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  worldviews: {
+    list: async (projectId: string, opts?: { isSynced?: boolean }) => {
+      const qs = typeof opts?.isSynced === "boolean" ? `?is_synced=${encodeURIComponent(String(opts.isSynced))}` : ""
+      const resp = await apiFetch<CoreEnvelope<any[]>>(`/projects/${encodeURIComponent(projectId)}/worldviews${qs}`)
+      return (resp.data ?? []).map(mapCoreWorldview)
+    },
+    create: async (projectId: string, dto: { name: string; description?: string; type: string; isSynced?: boolean }) => {
+      const resp = await apiFetch<CoreEnvelope<any>>(`/projects/${encodeURIComponent(projectId)}/worldviews`, {
+        method: "POST",
+        body: {
+          name: dto.name,
+          description: dto.description,
+          type: dto.type,
+          is_synced: dto.isSynced ?? true,
+        },
+      })
+      return mapCoreWorldview(resp.data)
+    },
+    terms: {
+      list: async (worldviewId: string) => {
+        const resp = await apiFetch<CoreEnvelope<any[]>>(`/worldviews/${encodeURIComponent(worldviewId)}/terms`)
+        return (resp.data ?? []).map(mapCoreTerm)
+      },
+      create: async (worldviewId: string, dto: { term: string; meaning: string }) => {
+        const resp = await apiFetch<CoreEnvelope<any>>(`/worldviews/${encodeURIComponent(worldviewId)}/terms`, { method: "POST", body: dto })
+        return mapCoreTerm(resp.data)
+      },
+    },
+    relationships: {
+      list: async (worldviewId: string, characterId: string) => {
+        return apiFetch<any>(`/worldviews/${encodeURIComponent(worldviewId)}/relationships?character_id=${encodeURIComponent(characterId)}`)
+      },
+      create: async (worldviewId: string, dto: { baseCharacterId: string; targetCharacterId: string; relationType?: string; color?: string }) => {
+        return apiFetch<any>(`/worldviews/${encodeURIComponent(worldviewId)}/relationships`, {
+          method: "POST",
+          body: {
+            base_character_id: dto.baseCharacterId,
+            target_character_id: dto.targetCharacterId,
+            relation_type: dto.relationType,
+            color: dto.color,
+          },
+        })
+      },
+    },
+    entries: {
+      create: async (worldviewId: string, dto: { title: string; content?: any }) => {
+        return apiFetch<any>(`/worldviews/${encodeURIComponent(worldviewId)}/entries`, { method: "POST", body: dto })
+      },
+    },
+  },
+  episodes: {
+    list: async (projectId: string) => {
+      const resp = await apiFetch<CoreEnvelope<any[]>>(`/projects/${encodeURIComponent(projectId)}/episodes`)
+      return (resp.data ?? []).map(mapCoreEpisodeListItem)
+    },
+    create: async (projectId: string, dto: { title: string; orderIndex: number }) => {
+      const resp = await apiFetch<CoreEnvelope<any>>(`/projects/${encodeURIComponent(projectId)}/episodes`, {
+        method: "POST",
+        body: { title: dto.title, order_index: dto.orderIndex },
+      })
+      return mapCoreEpisodeDetail(resp.data)
+    },
+    get: async (episodeId: string) => {
+      const resp = await apiFetch<CoreEnvelope<any>>(`/episodes/${encodeURIComponent(episodeId)}`)
+      return mapCoreEpisodeDetail(resp.data)
+    },
+    save: async (episodeId: string, dto: { content?: any; status?: string; charCount?: number; charCountNoSpace?: number; title?: string; orderIndex?: number }) => {
+      const payload: any = {}
+      if (dto.content !== undefined) payload.content = dto.content
+      if (dto.status !== undefined) payload.status = dto.status
+      if (dto.charCount !== undefined) payload.char_count = dto.charCount
+      if (dto.charCountNoSpace !== undefined) payload.char_count_no_space = dto.charCountNoSpace
+      if (dto.title !== undefined) payload.title = dto.title
+      if (dto.orderIndex !== undefined) payload.order_index = dto.orderIndex
+
+      const resp = await apiFetch<any>(`/episodes/${encodeURIComponent(episodeId)}`, { method: "PATCH", body: payload })
+      return {
+        success: Boolean((resp as any)?.success ?? true),
+        message: typeof (resp as any)?.message === "string" ? (resp as any).message : undefined,
+        updatedAt: toIso((resp as any)?.updated_at),
+      }
+    },
   },
   worldSettings: {
     list: (projectId: string) => apiFetch<any[]>(`/world-settings?projectId=${encodeURIComponent(projectId)}`),

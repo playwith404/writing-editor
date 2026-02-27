@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   BookOpen,
   Clock,
@@ -14,6 +15,7 @@ import {
   SquarePen,
   X,
 } from "lucide-react"
+import { api, ApiError } from "@/lib/api"
 
 type Project = {
   id: string
@@ -23,25 +25,6 @@ type Project = {
   wordCount?: number
   updatedAt?: string
 }
-
-const mockProjects: Project[] = [
-  {
-    id: "magilcho-jeon",
-    title: "나의 삶 시리즈",
-    description: "등대는 홀로 서있는 파수꾼처럼 다가오는 안개 속에서 빛을 발하며...",
-    genre: "NOVEL",
-    wordCount: 15420,
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "project-mock-2",
-    title: "파이썬 학습일지",
-    description: "파이썬의 기초부터 데이터 분석까지 기록하는 나만의 학습 가이드입니다.",
-    genre: "TECHNOLOGY",
-    wordCount: 8200,
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
 
 function formatEditedAt(iso?: string) {
   if (!iso) return "just now"
@@ -201,21 +184,44 @@ function ModeSelectionModal({
 
 export default function ProjectsPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [modeOpen, setModeOpen] = useState(false)
-  const projects = mockProjects
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => api.projects.list(),
+  })
+
+  const projects = useMemo(() => (projectsQuery.data ?? []) as Array<{ id: string; title: string; updatedAt?: string }>, [projectsQuery.data])
+
+  const createProjectMutation = useMutation({
+    mutationFn: async () => {
+      setCreateError(null)
+      const title = `새 시리즈 ${new Date().toISOString().slice(0, 10)}`
+      return api.projects.create({ title })
+    },
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ["projects"] })
+      router.push(`/projects/${created.id}`)
+    },
+    onError: (err) => {
+      setCreateError(err instanceof ApiError ? err.message : "프로젝트 생성에 실패했습니다.")
+    },
+  })
 
   const recentProjects = projects.slice(0, 2)
   const templateProjects = projects.slice(0, 1)
-  const defaultProjectId = useMemo(() => projects[0]?.id ?? "magilcho-jeon", [projects])
 
   const openWriterMode = () => {
     setModeOpen(false)
-    router.push(`/projects/${defaultProjectId}`)
+    createProjectMutation.mutate()
   }
 
   const openNormalMode = () => {
     setModeOpen(false)
-    router.push(`/${defaultProjectId}`)
+    // 일반 모드는 아직 백엔드 스펙이 정리되지 않아 임시로 작가 모드로 연결합니다.
+    createProjectMutation.mutate()
   }
 
   return (
@@ -233,12 +239,19 @@ export default function ProjectsPage() {
           <p className="text-2xl font-light text-[#a09080] md:text-[42px]">어떤 작품을 집필해 볼까요?</p>
         </div>
 
+        {createError && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {createError}
+          </div>
+        )}
+
         <div className="mb-16 flex flex-wrap gap-4">
           <button
             type="button"
             onClick={() => {
               setModeOpen(true)
             }}
+            disabled={createProjectMutation.isPending}
             className="flex items-center gap-2 rounded-2xl bg-[#938274] px-7 py-3 font-semibold text-white shadow-[0_10px_18px_rgba(147,130,116,0.25)] transition hover:-translate-y-0.5 hover:bg-[#837365]"
           >
             <Plus className="h-5 w-5" />
@@ -262,6 +275,16 @@ export default function ProjectsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {projectsQuery.isLoading && (
+              <div className="rounded-2xl border border-[#e2dbd1] bg-white p-6 text-sm font-semibold text-[#7d6f62]">
+                프로젝트를 불러오는 중...
+              </div>
+            )}
+            {projectsQuery.isError && (
+              <div className="rounded-2xl border border-[#e2dbd1] bg-white p-6 text-sm font-semibold text-[#7d6f62]">
+                프로젝트 목록을 불러오지 못했습니다.
+              </div>
+            )}
             {recentProjects.map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}

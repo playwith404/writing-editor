@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation"
 import { useMemo, useRef, useState } from "react"
 import type { FormEvent } from "react"
+import { useQuery } from "@tanstack/react-query"
 import {
   Download,
   Link2,
@@ -12,6 +13,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react"
+import { api } from "@/lib/api"
 
 type ActKey = "act1" | "act2" | "act3"
 
@@ -238,7 +240,13 @@ function SceneCard({
 
 export default function PlotTimelinePage() {
   const params = useParams<{ projectId: string }>()
-  const projectId = params.projectId || "magilcho-jeon"
+  const projectId = params.projectId
+
+  const projectQuery = useQuery({
+    queryKey: ["projects", projectId],
+    queryFn: () => api.projects.get(projectId),
+    enabled: Boolean(projectId),
+  })
 
   const [act, setAct] = useState<ActKey>("act2")
   const [scenesByAct, setScenesByAct] = useState<Record<ActKey, Scene[]>>(initialScenes)
@@ -248,7 +256,7 @@ export default function PlotTimelinePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const sceneCounterRef = useRef(10)
 
-  const title = `${projectId === "magilcho-jeon" ? "마길초전" : "마길초전"} 플롯 타임라인`
+  const title = `${projectQuery.data?.title || "프로젝트"} 플롯 타임라인`
 
   const scenes = scenesByAct[act]
 

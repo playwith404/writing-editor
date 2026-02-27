@@ -16,34 +16,12 @@ import {
   Sparkles,
   Users,
 } from "lucide-react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
+
 import Sidebar from "@/components/dashboard/Sidebar"
 import { TipTapEditor } from "@/components/editor/tiptap-editor"
 import { api, ApiError } from "@/lib/api"
-
-type ProjectDocument = {
-  id: string
-  title: string
-  type?: string | null
-  parentId?: string | null
-  orderIndex?: number | null
-  createdAt?: string
-  content?: string | null
-}
-
-type WorldSettingItem = {
-  id: string
-  title: string
-  category?: string | null
-  content?: string | null
-}
-
-type CharacterItem = {
-  id: string
-  name: string
-  role?: string | null
-}
 
 type ToolbarState = {
   bold: boolean
@@ -59,28 +37,6 @@ const DEFAULT_TOOLBAR_STATE: ToolbarState = {
   heading1: false,
   heading2: false,
   blockquote: false,
-}
-
-function parseOrderedParam(value: string | null, prefix: "chapter" | "episode"): number | null {
-  if (!value) return null
-  const match = new RegExp(`^${prefix}-(\\d+)$`).exec(value)
-  if (!match) return null
-  const parsed = Number(match[1])
-  if (!Number.isInteger(parsed) || parsed < 1) return null
-  return parsed
-}
-
-function compareByOrderIndex(a: ProjectDocument, b: ProjectDocument) {
-  return (Number(a.orderIndex ?? 0) - Number(b.orderIndex ?? 0)) || String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? ""))
-}
-
-function fallbackTitle(chapter: string | null, episode: string | null) {
-  const chapterNo = parseOrderedParam(chapter, "chapter")
-  const episodeNo = parseOrderedParam(episode, "episode")
-
-  if (!chapterNo) return "새 문서"
-  if (!episodeNo) return `${chapterNo}장. 나의 삶`
-  return `${chapterNo}장 ${episodeNo}화`
 }
 
 function stripHtml(value: string) {
@@ -126,15 +82,15 @@ function ToolbarButton({
 export default function WriterModeEditorPage() {
   const params = useParams<{ projectId: string }>()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const queryClient = useQueryClient()
+
   const editorRef = useRef<Editor | null>(null)
-  const routeSyncRef = useRef<string | null>(null)
+  const bootstrappingRef = useRef(false)
 
   const projectId = params.projectId
-  const chapterParam = searchParams.get("chapter")
-  const episodeParam = searchParams.get("episode")
+  const episodeId = searchParams.get("episodeId") || ""
 
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [content, setContent] = useState("")
   const [dirty, setDirty] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -147,43 +103,89 @@ export default function WriterModeEditorPage() {
     enabled: Boolean(projectId),
   })
 
-  const documentsQuery = useQuery({
-    queryKey: ["documents", projectId],
-    queryFn: () => api.documents.list(projectId),
+  const episodesQuery = useQuery({
+    queryKey: ["episodes", projectId],
+    queryFn: () => api.episodes.list(projectId),
     enabled: Boolean(projectId),
   })
 
-  const worldSettingsQuery = useQuery({
-    queryKey: ["world-settings", projectId],
-    queryFn: () => api.worldSettings.list(projectId),
-    enabled: Boolean(projectId),
+  const episodes = useMemo(() => {
+    const list = (episodesQuery.data ?? []) as Array<{ id: string; title: string; orderIndex: number }>
+    return [...list].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+  }, [episodesQuery.data])
+
+  const bootstrapEpisodeMutation = useMutation({
+    mutationFn: async () => {
+      const nextOrderIndex = episodes.length > 0 ? Math.max(...episodes.map((ep) => ep.orderIndex)) + 1 : 1
+      const title = `${nextOrderIndex}장. 새 원고`
+      return api.episodes.create(projectId, { title, orderIndex: nextOrderIndex })
+    },
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ["episodes", projectId] })
+      router.replace(`/projects/${projectId}/editor?episodeId=${encodeURIComponent(created.id)}`)
+    },
+    onError: (err) => {
+      setSaveError(err instanceof ApiError ? err.message : "회차를 생성하지 못했습니다.")
+      bootstrappingRef.current = false
+    },
   })
 
-  const charactersQuery = useQuery({
-    queryKey: ["characters", projectId],
-    queryFn: () => api.characters.list(projectId),
-    enabled: Boolean(projectId),
+  useEffect(() => {
+    if (!projectId) return
+    if (episodesQuery.isLoading || episodesQuery.isError) return
+    if (episodeId) return
+
+    if (episodes.length > 0) {
+      router.replace(`/projects/${projectId}/editor?episodeId=${encodeURIComponent(episodes[0].id)}`)
+      return
+    }
+
+    if (bootstrappingRef.current) return
+    bootstrappingRef.current = true
+    bootstrapEpisodeMutation.mutate()
+  }, [projectId, episodesQuery.isLoading, episodesQuery.isError, episodeId, episodes, router, bootstrapEpisodeMutation])
+
+  const episodeQuery = useQuery({
+    queryKey: ["episode", episodeId],
+    queryFn: () => api.episodes.get(episodeId),
+    enabled: Boolean(episodeId),
   })
 
-  const documents = useMemo(() => ((documentsQuery.data ?? []) as ProjectDocument[]), [documentsQuery.data])
-  const worldSettings = useMemo(() => ((worldSettingsQuery.data ?? []) as WorldSettingItem[]), [worldSettingsQuery.data])
-  const characters = useMemo(() => ((charactersQuery.data ?? []) as CharacterItem[]), [charactersQuery.data])
+  const displayTitle = useMemo(() => {
+    return episodeQuery.data?.title || "새 문서"
+  }, [episodeQuery.data?.title])
 
-  const documentMap = useMemo(() => {
-    const map = new Map<string, ProjectDocument>()
-    for (const doc of documents) map.set(String(doc.id), doc)
-    return map
-  }, [documents])
-
-  const currentDocument = selectedDocumentId ? documentMap.get(selectedDocumentId) ?? null : null
+  useEffect(() => {
+    if (!episodeQuery.data) return
+    const raw = episodeQuery.data.content
+    const stored = typeof raw === "string" ? raw : ""
+    const next =
+      stored.trim().length > 0
+        ? stored
+        : `<h1>${episodeQuery.data.title || "새 문서"}</h1><p>이곳에서 문서를 작성해 보세요.</p>`
+    setContent(next)
+    setDirty(false)
+    setSaveError(null)
+  }, [episodeQuery.data])
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: { id: string; content: string }) => api.documents.update(payload.id, { content: payload.content }),
-    onSuccess: async () => {
+    mutationFn: async (payload: { episodeId: string; html: string }) => {
+      const plain = stripHtml(payload.html)
+      const charCount = plain.length
+      const charCountNoSpace = plain.replace(/\s/g, "").length
+
+      return api.episodes.save(payload.episodeId, {
+        content: payload.html,
+        charCount,
+        charCountNoSpace,
+      })
+    },
+    onSuccess: async (resp) => {
       setDirty(false)
-      setLastSavedAt(new Date())
       setSaveError(null)
-      await queryClient.invalidateQueries({ queryKey: ["documents", projectId] })
+      setLastSavedAt(resp.updatedAt ? new Date(resp.updatedAt) : new Date())
+      await queryClient.invalidateQueries({ queryKey: ["episodes", projectId] })
+      await queryClient.invalidateQueries({ queryKey: ["episode", episodeId] })
     },
     onError: (error) => {
       setSaveError(error instanceof ApiError ? error.message : "저장에 실패했습니다.")
@@ -191,141 +193,12 @@ export default function WriterModeEditorPage() {
   })
 
   useEffect(() => {
-    if (!chapterParam || !projectId || documentsQuery.isLoading || documentsQuery.isError) return
-
-    const syncKey = `${projectId}:${chapterParam}:${episodeParam ?? ""}`
-    if (routeSyncRef.current === syncKey) return
-
-    let cancelled = false
-
-    const syncRouteToDocument = async () => {
-      const chapterNo = parseOrderedParam(chapterParam, "chapter")
-      if (!chapterNo) {
-        routeSyncRef.current = syncKey
-        return
-      }
-
-      let createdAny = false
-      const workingDocs = [...documents]
-      const rootChapters = workingDocs
-        .filter((doc) => String(doc.type ?? "") === "chapter" && (doc.parentId === null || doc.parentId === undefined || doc.parentId === ""))
-        .sort(compareByOrderIndex)
-
-      let chapterDoc = rootChapters[chapterNo - 1]
-
-      if (!chapterDoc) {
-        try {
-          chapterDoc = (await api.documents.create({
-            projectId,
-            type: "chapter",
-            title: `${chapterNo}장`,
-            parentId: null,
-            content: "",
-            orderIndex: rootChapters.length,
-          })) as ProjectDocument
-          workingDocs.push(chapterDoc)
-          createdAny = true
-        } catch (error) {
-          if (cancelled) return
-          setSaveError(error instanceof ApiError ? error.message : "장 문서를 생성하지 못했습니다.")
-          return
-        }
-      }
-
-      if (!chapterDoc || cancelled) return
-
-      const chapterId = String(chapterDoc.id)
-      const episodeNo = parseOrderedParam(episodeParam, "episode")
-
-      if (!episodeNo) {
-        setSelectedDocumentId(chapterId)
-        routeSyncRef.current = syncKey
-        if (createdAny) {
-          await queryClient.invalidateQueries({ queryKey: ["documents", projectId] })
-        }
-        return
-      }
-
-      const chapterScenes = workingDocs
-        .filter((doc) => String(doc.type ?? "") === "scene" && String(doc.parentId ?? "") === chapterId)
-        .sort(compareByOrderIndex)
-
-      let episodeDoc = chapterScenes[episodeNo - 1]
-
-      if (!episodeDoc) {
-        try {
-          episodeDoc = (await api.documents.create({
-            projectId,
-            type: "scene",
-            title: `${chapterNo}장 ${episodeNo}화`,
-            parentId: chapterId,
-            content: "",
-            orderIndex: chapterScenes.length,
-          })) as ProjectDocument
-          createdAny = true
-        } catch (error) {
-          if (cancelled) return
-          setSaveError(error instanceof ApiError ? error.message : "화 문서를 생성하지 못했습니다.")
-          return
-        }
-      }
-
-      if (cancelled || !episodeDoc) return
-      setSelectedDocumentId(String(episodeDoc.id))
-      routeSyncRef.current = syncKey
-
-      if (createdAny) {
-        await queryClient.invalidateQueries({ queryKey: ["documents", projectId] })
-      }
-    }
-
-    void syncRouteToDocument()
-
-    return () => {
-      cancelled = true
-    }
-  }, [projectId, chapterParam, episodeParam, documents, documentsQuery.isLoading, documentsQuery.isError, queryClient])
-
-  useEffect(() => {
-    if (chapterParam) return
-    if (!selectedDocumentId && documents.length > 0) {
-      setSelectedDocumentId(String(documents[0].id))
-    }
-  }, [chapterParam, documents, selectedDocumentId])
-
-  useEffect(() => {
-    if (!currentDocument) return
-
-    const nextContent =
-      typeof currentDocument.content === "string" && currentDocument.content.trim().length > 0
-        ? currentDocument.content
-        : `<h1>${currentDocument.title || "새 문서"}</h1><p>이곳에서 문서를 작성해 보세요.</p>`
-
-    setContent(nextContent)
-    setDirty(false)
-    setSaveError(null)
-  }, [currentDocument])
-
-  useEffect(() => {
-    if (!chapterParam) return
-    setContent(`<h1>${fallbackTitle(chapterParam, episodeParam)}</h1><p>이곳에서 문서를 작성해 보세요.</p>`)
-    setDirty(false)
-    setSaveError(null)
-  }, [chapterParam, episodeParam])
-
-  useEffect(() => {
-    if (!dirty || !selectedDocumentId) return
+    if (!dirty || !episodeId) return
     const timer = setTimeout(() => {
-      saveMutation.mutate({ id: selectedDocumentId, content })
+      saveMutation.mutate({ episodeId, html: content })
     }, 1000)
-
     return () => clearTimeout(timer)
-  }, [dirty, selectedDocumentId, content, saveMutation])
-
-  const displayTitle = useMemo(
-    () => currentDocument?.title || fallbackTitle(chapterParam, episodeParam),
-    [currentDocument?.title, chapterParam, episodeParam]
-  )
+  }, [dirty, episodeId, content, saveMutation])
 
   const wordCount = useMemo(() => {
     const plain = stripHtml(content)
@@ -335,12 +208,53 @@ export default function WriterModeEditorPage() {
 
   const formattedWordCount = useMemo(() => `${new Intl.NumberFormat("en-US").format(wordCount)} WORDS`, [wordCount])
 
+  const worldviewsQuery = useQuery({
+    queryKey: ["worldviews", projectId, "synced"],
+    queryFn: () => api.worldviews.list(projectId, { isSynced: true }),
+    enabled: Boolean(projectId),
+  })
+
+  const termWorldview = useMemo(() => {
+    const list = worldviewsQuery.data ?? []
+    return list.find((w) => w.type === "TERM") ?? null
+  }, [worldviewsQuery.data])
+
+  const bootstrapTermWorldview = useMutation({
+    mutationFn: async () => {
+      return api.worldviews.create(projectId, {
+        name: "용어",
+        description: "세계관 핵심 용어를 정리합니다.",
+        type: "TERM",
+        isSynced: true,
+      })
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["worldviews", projectId, "synced"] })
+    },
+  })
+
+  useEffect(() => {
+    if (!projectId) return
+    if (worldviewsQuery.isLoading || worldviewsQuery.isError) return
+    if (termWorldview) return
+    if (bootstrapTermWorldview.isPending) return
+    bootstrapTermWorldview.mutate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, worldviewsQuery.isLoading, worldviewsQuery.isError, termWorldview])
+
+  const termsQuery = useQuery({
+    queryKey: ["worldview-terms", termWorldview?.id],
+    queryFn: () => api.worldviews.terms.list(termWorldview!.id),
+    enabled: Boolean(termWorldview?.id),
+  })
+
   const worldCards = useMemo(() => {
-    if (worldSettings.length > 0) {
-      return worldSettings.slice(0, 2).map((item, index) => ({
+    const terms = termsQuery.data ?? []
+    if (terms.length > 0) {
+      return terms.slice(0, 2).map((item, index) => ({
         id: item.id,
-        title: item.title || "제목 없음",
-        description: item.content?.slice(0, 58) || "세계관 정보를 입력해 보세요.",
+        title: item.term || "제목 없음",
+        description: item.meaning?.slice(0, 58) || "설명을 입력해 보세요.",
         tone: index === 0 ? "warm" : "plain",
       }))
     }
@@ -349,9 +263,16 @@ export default function WriterModeEditorPage() {
       { id: "term-1", title: "밥 쥐", description: "밥을 달라는 뜻이에요.", tone: "warm" as const },
       { id: "term-2", title: "맘마 쥐", description: "배고플 때 쓰는 신호예요.", tone: "plain" as const },
     ]
-  }, [worldSettings])
+  }, [termsQuery.data])
+
+  const charactersQuery = useQuery({
+    queryKey: ["characters", projectId],
+    queryFn: () => api.characters.list(projectId),
+    enabled: Boolean(projectId),
+  })
 
   const relationCards = useMemo(() => {
+    const characters = charactersQuery.data ?? []
     if (characters.length > 0) {
       return characters.slice(0, 4).map((item, index) => ({
         id: item.id,
@@ -365,7 +286,7 @@ export default function WriterModeEditorPage() {
       { id: "character-2", name: "강은서", role: "라이벌" },
       { id: "character-3", name: "송은재", role: "히로인" },
     ]
-  }, [characters])
+  }, [charactersQuery.data])
 
   const runCommand = (command: (editor: Editor) => void) => {
     if (!editorRef.current) return
@@ -430,18 +351,25 @@ export default function WriterModeEditorPage() {
             >
               <Italic className="h-4 w-4" />
             </ToolbarButton>
-            <span className="mx-1 h-4 w-px bg-[#dbcdbb]" />
             <ToolbarButton
-              title="제목 1"
+              title="H1"
               active={toolbarState.heading1}
-              onClick={() => runCommand((editor) => editor.chain().focus().toggleHeading({ level: 1 }).run())}
+              onClick={() =>
+                runCommand((editor) =>
+                  editor.chain().focus().toggleHeading({ level: 1 }).run()
+                )
+              }
             >
               <Heading1 className="h-4 w-4" />
             </ToolbarButton>
             <ToolbarButton
-              title="제목 2"
+              title="H2"
               active={toolbarState.heading2}
-              onClick={() => runCommand((editor) => editor.chain().focus().toggleHeading({ level: 2 }).run())}
+              onClick={() =>
+                runCommand((editor) =>
+                  editor.chain().focus().toggleHeading({ level: 2 }).run()
+                )
+              }
             >
               <Heading2 className="h-4 w-4" />
             </ToolbarButton>
@@ -454,29 +382,29 @@ export default function WriterModeEditorPage() {
             </ToolbarButton>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="rounded-full border border-[#e1d6c7] bg-[#fcf8f1] px-3 py-1 text-xs font-bold tracking-wide text-[#8b7b69]">
+          <div className="flex items-center gap-4">
+            <span className="rounded-full bg-[#fdfaf5] px-4 py-2 text-xs font-bold text-[#7e6f5f] shadow-sm">
               {formattedWordCount}
             </span>
             <button
               type="button"
               onClick={exportDocument}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#deceb9] bg-[#fffdf8] px-4 py-2 text-sm font-semibold text-[#6e5f50] transition hover:bg-[#f6efe4]"
+              className="inline-flex items-center gap-2 rounded-full border border-[#e0d4c4] bg-[#fdfaf5] px-4 py-2 text-xs font-bold text-[#5f5347] shadow-sm transition hover:bg-white"
             >
               <Download className="h-4 w-4" />
-              <span>Export</span>
+              Export
             </button>
           </div>
         </header>
 
-        {saveError && (
-          <div className="border-b border-[#ebd6d1] bg-[#f8ece9] px-8 py-2 text-sm text-[#9b5149]">
-            {saveError}
-          </div>
-        )}
-
         <div className="flex min-h-0 flex-1">
           <main className="min-w-0 flex-1 overflow-y-auto bg-[#f5f0e6] px-6 py-8 lg:px-10 lg:py-10">
+            {saveError && (
+              <div className="mx-auto mb-6 max-w-[760px] rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {saveError}
+              </div>
+            )}
+
             <TipTapEditor
               content={content}
               onChange={(next) => {
@@ -579,7 +507,13 @@ export default function WriterModeEditorPage() {
                 <div className="space-y-1 text-xs text-[#8f806f]">
                   <p>프로젝트: {projectQuery.data?.title || "불러오는 중..."}</p>
                   <p>현재 문서: {displayTitle}</p>
-                  <p>{lastSavedAt ? `마지막 저장 ${lastSavedAt.toLocaleTimeString()}` : dirty ? "저장 대기 중..." : "저장 대기 중인 변경 없음"}</p>
+                  <p>
+                    {lastSavedAt
+                      ? `마지막 저장 ${lastSavedAt.toLocaleTimeString()}`
+                      : dirty
+                        ? "저장 대기 중..."
+                        : "저장 대기 중인 변경 없음"}
+                  </p>
                 </div>
               </section>
             </div>
@@ -597,3 +531,4 @@ function BookOpenTextIcon() {
     </span>
   )
 }
+
