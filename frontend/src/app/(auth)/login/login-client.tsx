@@ -28,9 +28,8 @@ export default function LoginClient() {
     setResendMessage(null)
     setLoading(true)
     try {
-      // 개발 환경 UI 확인을 위해 가짜 토큰을 발급 (백엔드 우회)
-      const mockToken = "dummy.eyJpZCI6InRlc3QiLCJuYW1lIjoiR3Vlc3QiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20ifQ==.dummy";
-      setTokens({ accessToken: mockToken, refreshToken: mockToken })
+      const tokens = await api.auth.login({ email, password })
+      setTokens(tokens)
       router.replace(next)
     } catch (err) {
       if (err instanceof ApiError) {
@@ -56,6 +55,12 @@ export default function LoginClient() {
     } finally {
       setResendLoading(false)
     }
+  }
+
+  const onGoogleLogin = () => {
+    const base = (process.env.NEXT_PUBLIC_API_URL?.trim() || "/api").replace(/\/$/, "")
+    const url = `${base}/auth/google?next=${encodeURIComponent(next)}`
+    window.location.href = url
   }
 
   return (
@@ -89,8 +94,12 @@ export default function LoginClient() {
             {loading ? "로그인 중..." : "로그인"}
           </Button>
 
+          <Button type="button" className="w-full" variant="secondary" onClick={onGoogleLogin}>
+            Google로 로그인
+          </Button>
+
           <div className="text-right mt-2 flex justify-between items-center text-sm test-muted-foreground p-3 rounded bg-muted/20">
-            <span className="text-muted-foreground mr-2">※ UI 테스트 모드: 아무 이메일/비밀번호나 입력하고 로그인하세요.</span>
+            <span className="text-muted-foreground mr-2">비밀번호 로그인을 사용하거나 Google 로그인을 선택하세요.</span>
             <Link href="/forgot-password" className="text-sm text-muted-foreground hover:underline">
               비밀번호를 잊으셨나요?
             </Link>

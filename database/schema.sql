@@ -6,11 +6,85 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ==========================================
--- 1) projects
+-- 1) users
+-- ==========================================
+CREATE TABLE IF NOT EXISTS users (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email         VARCHAR(320) NOT NULL UNIQUE,
+    password_hash VARCHAR(255),
+    name          VARCHAR(100),
+    image_url     VARCHAR(500),
+    email_verified_at TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at    TIMESTAMPTZ
+);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC);
+
+-- ==========================================
+-- 2) accounts (OAuth providers like Google)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS accounts (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider             VARCHAR(50) NOT NULL DEFAULT 'google',
+    provider_id          VARCHAR(255) NOT NULL UNIQUE,
+    access_token         TEXT,
+    refresh_token        TEXT,
+    expires_at           TIMESTAMPTZ,
+    token_type           VARCHAR(50),
+    scope                TEXT,
+    id_token             TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_accounts_provider ON accounts(provider);
+
+-- ==========================================
+-- 3) sessions
+-- ==========================================
+CREATE TABLE IF NOT EXISTS sessions (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token_hash VARCHAR(64) NOT NULL,
+    user_agent         TEXT,
+    ip_address         VARCHAR(64),
+    last_used_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at         TIMESTAMPTZ NOT NULL,
+    revoked_at         TIMESTAMPTZ,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
+-- ==========================================
+-- 4) verification_tokens
+-- ==========================================
+CREATE TABLE IF NOT EXISTS verification_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  VARCHAR(64) NOT NULL UNIQUE,
+    token_type  VARCHAR(50) NOT NULL,
+    payload     TEXT,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_user_id ON verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_type ON verification_tokens(token_type);
+
+-- ==========================================
+-- 5) projects
 -- ==========================================
 CREATE TABLE IF NOT EXISTS projects (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title       VARCHAR(200) NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -20,7 +94,7 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at DESC);
 
 -- ==========================================
--- 2) characters
+-- 6) characters
 -- ==========================================
 CREATE TABLE IF NOT EXISTS characters (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -40,7 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_characters_project_id ON characters(project_id);
 CREATE INDEX IF NOT EXISTS idx_characters_synced ON characters(project_id, is_synced) WHERE deleted_at IS NULL;
 
 -- ==========================================
--- 3) worldviews + child tables
+-- 7) worldviews + child tables
 -- ==========================================
 CREATE TABLE IF NOT EXISTS worldviews (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -91,7 +165,7 @@ CREATE TABLE IF NOT EXISTS worldview_entries (
 CREATE INDEX IF NOT EXISTS idx_worldview_entries_worldview_id ON worldview_entries(worldview_id);
 
 -- ==========================================
--- 4) plots + link tables
+-- 8) plots + link tables
 -- ==========================================
 CREATE TABLE IF NOT EXISTS plots (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -136,7 +210,7 @@ CREATE TABLE IF NOT EXISTS plot_episodes (
 );
 
 -- ==========================================
--- 5) AI embeddings
+-- 9) AI embeddings
 -- ==========================================
 CREATE TABLE IF NOT EXISTS episode_embeddings (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
