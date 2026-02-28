@@ -276,6 +276,8 @@ export const api = {
   auth: {
     login: (dto: { email: string; password: string }) =>
       apiFetch<{ accessToken: string; refreshToken: string }>("/auth/login", { method: "POST", body: dto }),
+    oauthExchange: (dto: { code: string }) =>
+      apiFetch<{ accessToken: string; refreshToken: string; next: string }>("/auth/oauth/exchange", { method: "POST", body: dto }),
     register: (dto: { email: string; name: string; password: string }) =>
       apiFetch<{ accessToken: string; refreshToken: string } | { success: true; message?: string }>("/auth/register", { method: "POST", body: dto }),
     verifyEmail: (dto: { token: string }) =>
